@@ -1,0 +1,839 @@
+Of course. This document is basically the specification / requirements document for a web-based online training platform. It explains what the website must do, who will use it, what features are required, and what you need to deliver.
+
+I'll explain it in simple English, section by section.
+
+1. What is the project?
+
+The project is an Online Training Platform for two types of customers:
+
+👤 Individuals → people who buy/take courses themselves.
+🏢 Companies → companies that buy courses for their employees and want to monitor them.
+
+The problem is that the company currently uses different tools like:
+
+Email
+Excel/spreadsheets
+Shared files
+
+The goal is to put everything into one website.
+
+The platform should allow users to:
+
+Find a course → get access → study lessons → take quizzes → take final exam → receive certificate
+
+2. Main objectives
+
+The project has two kinds of objectives.
+
+Business objectives
+
+The company wants to:
+
+Put all courses and learning materials in one place.
+Automatically correct quizzes and calculate scores.
+Allow companies to monitor their employees.
+Reduce administrative work.
+Your objectives as the developer
+
+You need to:
+
+Build a working Version 1.
+Deploy it so it can actually be used.
+Write clean code.
+Write documentation so another developer can continue the project.
+Success criteria
+
+The project is considered successful if:
+
+All materials for at least one complete course are available.
+A student can complete:
+
+Registration → Course → Lessons → Quiz → Exam → Certificate
+
+without manual intervention.
+
+A company manager can see employee progress without asking the platform administrators.
+3. What is included in Version 1?
+
+These are the features you must build.
+
+Public website
+
+Visitors should be able to:
+
+See the homepage
+See available courses
+Search/filter courses
+Open a course page
+Contact the company
+User accounts
+
+Users can:
+
+Register
+Login
+Logout
+Reset password
+Edit their profile
+
+There are different roles.
+
+Student area
+
+Students can:
+
+See their courses
+Open lessons
+Download course materials
+Watch videos
+Take quizzes
+Take exams
+See their progress
+Download their certificate
+Company area
+
+Companies can:
+
+Manage employees
+Assign courses
+Monitor employees
+See progress
+See exam results
+Export reports
+Admin area
+
+The administrator can manage almost everything:
+
+Courses
+Lessons
+Users
+Companies
+Teachers
+Quizzes
+Exams
+Results
+Course access
+Certificate
+
+After passing the final exam, the system automatically creates a PDF certificate.
+
+Email notifications
+
+The system can send emails such as:
+
+"You have been registered for a course."
+"Your exam result is available."
+"You haven't used the platform for a while."
+4. What you DON'T need to build
+
+This part is very important.
+
+These features are explicitly NOT required for Version 1:
+
+❌ Online payment
+❌ Online invoicing
+❌ Built-in Zoom/Google Meet-style video conferencing
+❌ Internal messaging
+❌ Forum
+❌ Social features
+❌ Native Android/iOS application
+❌ Students creating their own courses/content
+❌ SCORM/xAPI
+❌ Integration with external HR systems
+
+So don't waste your time building these.
+
+For example, payment is handled outside the website.
+
+The customer can pay by:
+
+Bank transfer
+Quote
+Contract
+
+Then an administrator manually gives them access to the course.
+
+5. User roles
+
+There are 6 types of users.
+
+1. Visitor
+
+Someone who isn't logged in.
+
+They can:
+
+Browse courses
+Read course descriptions
+Contact the company
+2. Individual Student
+
+A normal student who takes courses personally.
+
+They can:
+
+Access their courses
+Read lessons
+Take quizzes
+Take exams
+Get certificates
+3. Company Student
+
+An employee.
+
+Basically the same as an individual student, but they belong to a company.
+
+For example:
+
+Company: ABC Company
+
+Employees:
+
+Ahmed
+Sarah
+Mohamed
+
+The company manager can monitor them.
+
+4. Company Manager / Referent
+
+This is usually an HR manager or company supervisor.
+
+They can:
+
+Add employees
+Disable employees
+Assign courses
+Monitor progress
+See exam results
+Export reports
+
+For example:
+
+ABC Company has 20 employees taking "Cybersecurity Basics".
+
+The manager can see:
+
+Employee	Progress	Exam
+Ahmed	100%	85%
+Sarah	70%	Not taken
+Mohamed	40%	Not taken
+5. Teacher
+
+The teacher creates educational content.
+
+They can:
+
+Create courses
+Create modules
+Create lessons
+Upload materials
+Create quizzes
+Create exams
+See student results
+6. Administrator
+
+The admin has the highest permissions.
+
+They can manage:
+
+Users + Companies + Courses + Teachers + Students + Results + Access
+
+6. Course structure
+
+This is one of the most important parts of the project.
+
+The structure is:
+
+COURSE
+   │
+   ├── MODULE 1
+   │      ├── Lesson 1
+   │      ├── Lesson 2
+   │      └── Lesson 3
+   │
+   ├── MODULE 2
+   │      ├── Lesson 4
+   │      └── Lesson 5
+   │
+   └── MODULE 3
+          ├── Lesson 6
+          └── Lesson 7
+
+So:
+
+Formation → Module → Lesson → Course Material
+
+For example:
+
+Web Development
+│
+├── HTML
+│   ├── Introduction to HTML
+│   ├── HTML Elements
+│   └── HTML Forms
+│
+├── CSS
+│   ├── Introduction to CSS
+│   ├── Selectors
+│   └── Flexbox
+│
+└── JavaScript
+    ├── Variables
+    ├── Functions
+    └── Events
+7. Course materials
+
+A lesson can contain different types of content.
+
+Text
+
+For example:
+
+HTML is a markup language used to create web pages.
+
+The teacher can use a rich text editor.
+
+Files
+
+Students can download:
+
+PDF
+PowerPoint
+Word documents
+etc.
+Videos
+
+The website can embed videos from:
+
+YouTube
+Vimeo
+
+The actual video files do not need to be hosted on your server.
+
+That's important because video hosting requires a lot of storage and bandwidth.
+
+8. Progress system
+
+The student can mark a lesson as completed.
+
+For example:
+
+Course has 10 lessons.
+
+Student completed:
+
+7 / 10
+
+Therefore:
+
+70% progress
+
+The platform should show progress for:
+
+Each module
+The entire course
+
+Example:
+
+Web Development
+
+HTML       ██████████ 100%
+CSS        ███████░░░  70%
+JavaScript ████░░░░░░  40%
+
+Overall: 70%
+9. Quiz vs Exam
+
+The document makes an important distinction.
+
+Quiz
+
+A quiz is for practice.
+
+Characteristics:
+
+Related to a module
+Unlimited attempts
+Immediate correction
+Shows explanations
+Does NOT block the student
+
+Example:
+
+HTML Module
+
+Quiz:
+10 questions
+
+Score: 8/10
+
+Correct!
+Question 4:
+What does HTML stand for?
+
+Explanation:
+HTML means HyperText Markup Language.
+Exam
+
+The exam is the final evaluation.
+
+It is related to the entire course.
+
+Characteristics:
+
+Limited attempts
+Has a minimum passing score
+Gives a final result
+Determines whether the student receives the certificate
+
+For example:
+
+Final Exam
+
+Passing score: 70%
+
+Student score: 82%
+
+Result: PASSED ✅
+
+Certificate: Available
+10. Types of questions
+
+The system needs to support:
+
+Single-choice
+What is HTML?
+
+○ Programming language
+● Markup language
+○ Database
+○ Operating system
+Multiple-choice
+Which are programming languages?
+
+☑ Java
+☑ Python
+☐ HTML
+☑ C++
+True / False
+HTML is a programming language.
+
+○ True
+● False
+Optional: short answer
+
+This is marked C, meaning it's not essential for Version 1.
+
+Example:
+
+What does CSS stand for?
+
+[________________________]
+
+The system could automatically compare the answer with the expected answer.
+
+11. Student dashboard
+
+When a student logs in, they should have a dashboard.
+
+Something like:
+
+Welcome Adam 👋
+
+My Courses
+────────────────────────
+
+Web Development
+Progress: 75%
+[Continue]
+
+Database
+Progress: 30%
+[Continue]
+
+Cybersecurity
+Progress: 100%
+[View Certificate]
+
+The dashboard should also show upcoming deadlines if you implement them.
+
+12. Company dashboard
+
+The company manager gets a different dashboard.
+
+For example:
+
+ABC Company
+
+Employees: 25
+Active Courses: 4
+
+Overall Progress: 68%
+
+Employees
+────────────────────────────
+Ahmed       100%
+Sarah        80%
+Mohamed      55%
+Ali          30%
+
+The manager should be able to filter by:
+
+Employee
+Course
+Progress
+Results
+
+And export the information to:
+
+CSV / Excel
+
+13. Admin dashboard
+
+The administrator manages the entire platform.
+
+Think of it like:
+
+ADMIN DASHBOARD
+
+Users
+Companies
+Courses
+Modules
+Lessons
+Quizzes
+Exams
+Results
+Certificates
+Contact Requests
+Settings
+
+The admin can create and modify courses.
+
+For example:
+
+Courses
+─────────────────────────────
+Web Development     Published
+Python              Published
+Cybersecurity       Draft
+Database            Published
+14. How the complete process works
+
+This is probably the easiest way to understand the whole project.
+
+Individual student
+Visitor
+   ↓
+Browse courses
+   ↓
+Request information
+   ↓
+Create account
+   ↓
+Admin activates course access
+   ↓
+Student studies lessons
+   ↓
+Practice quizzes
+   ↓
+Final exam
+   ↓
+Pass exam
+   ↓
+Certificate PDF
+Company
+Company signs contract
+        ↓
+Admin creates company
+        ↓
+Admin creates company manager
+        ↓
+Manager adds employees
+        ↓
+Manager assigns courses
+        ↓
+Employees study
+        ↓
+Manager monitors progress
+        ↓
+Manager exports report
+Teacher
+Teacher logs in
+      ↓
+Creates course
+      ↓
+Creates modules
+      ↓
+Creates lessons
+      ↓
+Uploads materials
+      ↓
+Creates quizzes
+      ↓
+Creates exam
+      ↓
+Publishes course
+      ↓
+Monitors results
+15. Security requirements
+
+This section tells you that the website needs to be secure.
+
+You must protect against things like:
+
+SQL Injection
+
+Don't directly put user input into SQL queries.
+
+Use prepared statements / parameterized queries.
+
+XSS
+
+Don't allow malicious JavaScript to be injected into pages.
+
+CSRF
+
+Protect forms against unauthorized requests.
+
+Passwords
+
+Never store:
+
+password123
+
+directly in the database.
+
+Instead store a secure hash.
+
+Permissions
+
+This is extremely important.
+
+A student should NOT be able to do:
+
+/admin/users.php
+
+and access the admin panel.
+
+Even if they manually type the URL.
+
+The server must check their role.
+
+16. Example of permissions
+
+Imagine:
+
+student_id = 25
+course_id = 10
+
+The student requests:
+
+/course.php?id=10
+
+Your backend must check:
+
+Does student 25 have access to course 10?
+
+If YES:
+
+Show course
+
+If NO:
+
+Access denied
+
+This is specifically tested in the final acceptance test.
+
+17. Technical requirements
+
+The document does not force you to use Laravel or another specific framework.
+
+It says the developer can choose the technology.
+
+You need:
+
+Web application
+Relational database
+Clear separation between presentation, business logic and database
+Git
+Documentation
+Local installation
+Deployment capability
+
+So, considering that you told me previously that you're working with WAMP and PHP/MySQL, a PHP + MySQL solution can fit this specification.
+
+You don't necessarily need Laravel.
+
+18. 12-week schedule
+
+The project is planned for 12 weeks.
+
+Weeks 1–2
+
+Planning:
+
+Understand requirements
+Choose technologies
+Design database
+Setup Git
+Setup development environment
+Week 3
+
+Design:
+
+Create UI mockups
+Decide website structure
+Weeks 4–5
+
+Build the foundation:
+
+Login
+Registration
+Roles
+Admin dashboard
+Course management
+Weeks 6–7
+
+Build the learning system:
+
+Courses
+Modules
+Lessons
+Files
+Videos
+Progress
+Student dashboard
+Weeks 8–9
+
+Build:
+
+Quizzes
+Exams
+Automatic correction
+Results
+Week 10
+
+Build:
+
+Companies
+Employees
+Company dashboard
+Reports
+Deployment
+Week 11
+
+Testing:
+
+Fix bugs
+Documentation
+User guide
+Week 12
+
+Final presentation:
+
+Demonstration
+Explain the project
+Transfer knowledge
+19. What you actually need to build
+
+If you're going to develop this project yourself, I would divide it into these 10 major systems:
+
+1. Authentication
+       ↓
+2. User / Role Management
+       ↓
+3. Course Management
+       ↓
+4. Module Management
+       ↓
+5. Lesson + Materials
+       ↓
+6. Student Progress
+       ↓
+7. Quiz System
+       ↓
+8. Exam + Results
+       ↓
+9. Certificates
+       ↓
+10. Company Management + Reports
+
+And around them:
+
+Admin Dashboard
+Student Dashboard
+Teacher Dashboard
+Company Dashboard
+Public Website
+Email Notifications
+Security
+20. The database you will probably need
+
+The document doesn't directly give you the database tables, but from its requirements, your database will need entities similar to:
+
+users
+roles
+companies
+courses
+modules
+lessons
+materials
+enrollments
+progress
+quizzes
+questions
+answers
+quiz_attempts
+exam_attempts
+certificates
+notifications
+contact_requests
+
+And relationships such as:
+
+Company
+   ↓
+Users
+
+Course
+   ↓
+Modules
+   ↓
+Lessons
+   ↓
+Materials
+
+User
+   ↓
+Enrollments
+   ↓
+Course
+
+Quiz
+   ↓
+Questions
+   ↓
+Answers
+
+User
+   ↓
+Attempts
+   ↓
+Quiz / Exam
+
+We should design the database before starting the PHP pages, because almost the entire application depends on it.
+
+⭐ In one sentence
+
+Your project is essentially:
+
+A professional Moodle-like online learning platform where students take courses, study lessons, do quizzes/exams and receive certificates, while companies can assign courses to employees and monitor their progress, and administrators manage the entire system.
+
+And importantly, Version 1 should stay focused: don't start with payments, mobile apps, chat, forums, or video conferencing. Build the core learning platform first.
+
+If you want to build this with PHP + MySQL + WAMP (without Laravel/Tailwind), I can also break this specification into the exact database tables + PHP pages + folder structure + development order so you know exactly what to code first.
+
+
+2db01e7fdfdf2269bd3e600b16e8ae52
