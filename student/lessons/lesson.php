@@ -407,7 +407,7 @@ $next = $navigation[$currentIndex + 1] ?? null;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= studentEscape($lesson["title"]) ?> - Formation</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
-    <link rel="stylesheet" href="../../assets/css/style.css?v=20261019-document-tracking">
+    <link rel="stylesheet" href="../../assets/css/style.css?v=20261020-pdf-zoom">
     <style>
         /* Floating Left Notes Sidebar - Word / Notion Rich Text Style */
         .floating-notes-sidebar {
@@ -1269,7 +1269,7 @@ $next = $navigation[$currentIndex + 1] ?? null;
         }());
     </script>
 <script src="../../assets/js/lesson-content-guard.js?v=20261019-document-tracking"></script>
-<script type="module" src="../../assets/js/lesson-pdf-viewer.js?v=20261019-document-tracking"></script>
+<script type="module" src="../../assets/js/lesson-pdf-viewer.js?v=20261020-pdf-zoom"></script>
 <?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 

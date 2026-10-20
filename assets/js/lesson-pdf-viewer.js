@@ -27,6 +27,11 @@ import * as pdfjsLib from "./vendor/pdfjs/pdf.js";
         var pagesSeen = new Set();
         var pendingPages = new Set();
         var visibleTimers = new Map();
+        var pageObserver = null;
+        var zoomLevel = 1;
+        var minimumZoom = 1;
+        var maximumZoom = 2.5;
+        var zoomStep = 0.25;
         try {
             JSON.parse(viewer.dataset.pagesSeen || "[]").forEach(function (pageNumber) {
                 pagesSeen.add(Number(pageNumber));
@@ -90,13 +95,10 @@ import * as pdfjsLib from "./vendor/pdfjs/pdf.js";
 
         function observeVisiblePages() {
             if (!("IntersectionObserver" in window)) {
-                if (status) {
-                    status.textContent = "Le suivi des pages nécessite un navigateur récent.";
-                }
                 return;
             }
 
-            var observer = new IntersectionObserver(function (entries) {
+            pageObserver = new IntersectionObserver(function (entries) {
                 entries.forEach(function (entry) {
                     var pageNumber = Number(entry.target.dataset.pageNumber);
                     if (entry.isIntersecting && entry.intersectionRatio >= 0.2) {
@@ -113,10 +115,10 @@ import * as pdfjsLib from "./vendor/pdfjs/pdf.js";
                 });
             }, {
                 root: viewer,
-                threshold: [0.2]
+                threshold: [0.05]
             });
             viewer.querySelectorAll(".student-pdf-page").forEach(function (page) {
-                observer.observe(page);
+                pageObserver.observe(page);
             });
         }
 
@@ -159,48 +161,136 @@ import * as pdfjsLib from "./vendor/pdfjs/pdf.js";
             });
         }).then(function (pdf) {
             var pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-            var renderPage = function (pageNumber) {
-                return pdf.getPage(pageNumber).then(function (page) {
-                    var unscaledViewport = page.getViewport({ scale: 1 });
-                    var scale = Math.min((viewer.clientWidth - 40) / unscaledViewport.width, 1.35);
-                    var viewport = page.getViewport({ scale: Math.max(scale, 0.2) });
-                    var pageContainer = document.createElement("div");
-                    var canvas = document.createElement("canvas");
-                    var context = canvas.getContext("2d", { alpha: false });
+            var toolbar = document.createElement("div");
+            toolbar.className = "student-pdf-toolbar";
+            toolbar.setAttribute("role", "toolbar");
+            toolbar.setAttribute("aria-label", "Contrôles de zoom du document");
 
-                    pageContainer.className = "student-pdf-page";
-                    pageContainer.setAttribute("aria-label", "Page " + pageNumber);
-                    pageContainer.dataset.pageNumber = String(pageNumber);
-                    canvas.width = Math.ceil(viewport.width * pixelRatio);
-                    canvas.height = Math.ceil(viewport.height * pixelRatio);
-                    canvas.style.width = Math.ceil(viewport.width) + "px";
-                    canvas.style.height = Math.ceil(viewport.height) + "px";
-                    pageContainer.appendChild(canvas);
-                    viewer.appendChild(pageContainer);
+            var zoomOut = document.createElement("button");
+            zoomOut.type = "button";
+            zoomOut.className = "student-pdf-zoom-button";
+            zoomOut.textContent = "−";
+            zoomOut.setAttribute("aria-label", "Réduire le zoom");
 
-                    return page.render({
-                        canvasContext: context,
-                        viewport: viewport,
-                        transform: pixelRatio === 1 ? null : [pixelRatio, 0, 0, pixelRatio, 0, 0]
-                    }).promise;
-                });
-            };
+            var zoomLabel = document.createElement("span");
+            zoomLabel.className = "student-pdf-zoom-label";
+            zoomLabel.setAttribute("aria-live", "polite");
 
-            var pageJobs = [];
-            for (var pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-                pageJobs.push(pageNumber);
+            var zoomIn = document.createElement("button");
+            zoomIn.type = "button";
+            zoomIn.className = "student-pdf-zoom-button";
+            zoomIn.textContent = "+";
+            zoomIn.setAttribute("aria-label", "Agrandir le document");
+
+            var zoomReset = document.createElement("button");
+            zoomReset.type = "button";
+            zoomReset.className = "student-pdf-zoom-reset";
+            zoomReset.textContent = "Taille adaptée";
+            zoomReset.setAttribute("aria-label", "Réinitialiser le zoom à la taille adaptée");
+
+            toolbar.appendChild(zoomOut);
+            toolbar.appendChild(zoomLabel);
+            toolbar.appendChild(zoomIn);
+            toolbar.appendChild(zoomReset);
+            viewer.insertBefore(toolbar, viewer.firstChild);
+
+            function updateZoomControls(isRendering) {
+                zoomLabel.textContent = Math.round(zoomLevel * 100) + "%";
+                zoomOut.disabled = isRendering || zoomLevel <= minimumZoom;
+                zoomIn.disabled = isRendering || zoomLevel >= maximumZoom;
+                zoomReset.disabled = isRendering || zoomLevel === 1;
             }
-            return pageJobs.reduce(function (previousPage, currentPage) {
-                return previousPage.then(function () {
-                    return renderPage(currentPage);
-                });
-            }, Promise.resolve()).then(function () {
-                if (status) {
-                    status.remove();
+
+            function renderDocumentPages() {
+                var currentScroll = viewer.scrollTop;
+                if (pageObserver) {
+                    pageObserver.disconnect();
+                    pageObserver = null;
                 }
-                updateDocumentProgress();
-                observeVisiblePages();
+                visibleTimers.forEach(function (timer) {
+                    window.clearTimeout(timer);
+                });
+                visibleTimers.clear();
+                viewer.querySelectorAll(".student-pdf-page").forEach(function (page) {
+                    page.remove();
+                });
+                updateZoomControls(true);
+
+                var renderPage = function (pageNumber) {
+                    return pdf.getPage(pageNumber).then(function (page) {
+                        var unscaledViewport = page.getViewport({ scale: 1 });
+                        var fitScale = Math.min((viewer.clientWidth - 40) / unscaledViewport.width, 1.35);
+                        var scale = Math.max(fitScale * zoomLevel, 0.2);
+                        var viewport = page.getViewport({ scale: scale });
+                        var pageContainer = document.createElement("div");
+                        var canvas = document.createElement("canvas");
+                        var context = canvas.getContext("2d", { alpha: false });
+
+                        pageContainer.className = "student-pdf-page";
+                        pageContainer.setAttribute("aria-label", "Page " + pageNumber);
+                        pageContainer.dataset.pageNumber = String(pageNumber);
+                        canvas.width = Math.ceil(viewport.width * pixelRatio);
+                        canvas.height = Math.ceil(viewport.height * pixelRatio);
+                        canvas.style.width = Math.ceil(viewport.width) + "px";
+                        canvas.style.height = Math.ceil(viewport.height) + "px";
+                        pageContainer.appendChild(canvas);
+                        viewer.appendChild(pageContainer);
+
+                        return page.render({
+                            canvasContext: context,
+                            viewport: viewport,
+                            transform: pixelRatio === 1 ? null : [pixelRatio, 0, 0, pixelRatio, 0, 0]
+                        }).promise;
+                    });
+                };
+
+                var pageJobs = [];
+                for (var pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                    pageJobs.push(pageNumber);
+                }
+                return pageJobs.reduce(function (previousPage, currentPage) {
+                    return previousPage.then(function () {
+                        return renderPage(currentPage);
+                    });
+                }, Promise.resolve()).then(function () {
+                    viewer.scrollTop = currentScroll;
+                    updateZoomControls(false);
+                    updateDocumentProgress();
+                    observeVisiblePages();
+                }).catch(function (error) {
+                    updateZoomControls(false);
+                    throw error;
+                });
+            }
+
+            zoomOut.addEventListener("click", function () {
+                if (zoomLevel > minimumZoom) {
+                    zoomLevel = Math.max(minimumZoom, Math.round((zoomLevel - zoomStep) * 100) / 100);
+                    renderDocumentPages().catch(function (error) {
+                        console.error("Unable to resize course PDF:", error);
+                    });
+                }
             });
+            zoomIn.addEventListener("click", function () {
+                if (zoomLevel < maximumZoom) {
+                    zoomLevel = Math.min(maximumZoom, Math.round((zoomLevel + zoomStep) * 100) / 100);
+                    renderDocumentPages().catch(function (error) {
+                        console.error("Unable to resize course PDF:", error);
+                    });
+                }
+            });
+            zoomReset.addEventListener("click", function () {
+                zoomLevel = 1;
+                renderDocumentPages().catch(function (error) {
+                    console.error("Unable to resize course PDF:", error);
+                });
+            });
+
+            if (status) {
+                status.remove();
+            }
+            updateZoomControls(false);
+            return renderDocumentPages();
         }).catch(function (error) {
             console.error("Unable to render course PDF:", error);
             if (status) {

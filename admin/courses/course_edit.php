@@ -74,6 +74,7 @@ $teachers = $pdo->query("
     WHERE role = 'teacher' 
     ORDER BY first_name, last_name
 ")->fetchAll();
+$audiences = $pdo->query("SELECT id, name FROM course_audiences ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
 $title            = $course["title"];
 $slug             = $course["slug"];
@@ -85,6 +86,10 @@ $category         = $course["category"] ?? "";
 $duration         = $course["duration_hours"] ?? "";
 $price            = $course["price"] ?? "";
 $level            = $course["level"];
+$educationLevel   = $course["education_level"] ?? "";
+$audienceAssignmentStatement = $pdo->prepare("SELECT audience_id FROM course_target_audiences WHERE course_id = ?");
+$audienceAssignmentStatement->execute([$courseId]);
+$selectedAudienceIds = array_map("intval", $audienceAssignmentStatement->fetchAll(PDO::FETCH_COLUMN));
 $format           = $course["format"];
 $status           = $course["status"];
 $teacherId        = $course["teacher_id"] ?? "";
@@ -123,6 +128,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $duration         = trim($_POST["duration_hours"] ?? "");
     $price            = trim($_POST["price"] ?? "");
     $level            = $_POST["level"] ?? "";
+    $educationLevel   = $_POST["education_level"] ?? "";
+    $rawAudienceIds   = $_POST["audience_ids"] ?? [];
+    $selectedAudienceIds = [];
+    if (is_array($rawAudienceIds)) {
+        foreach ($rawAudienceIds as $audienceId) {
+            $validatedAudienceId = filter_var($audienceId, FILTER_VALIDATE_INT);
+            if ($validatedAudienceId === false || $validatedAudienceId < 1) {
+                $selectedAudienceIds = [-1];
+                break;
+            }
+            $selectedAudienceIds[] = $validatedAudienceId;
+        }
+        $selectedAudienceIds = array_values(array_unique($selectedAudienceIds));
+    } else {
+        $selectedAudienceIds = [-1];
+    }
     $format           = $_POST["format"] ?? "";
     $status           = $_POST["status"] ?? "";
     $teacherIds       = array_values(array_unique(array_filter(array_map("intval", (array) ($_POST["teacher_ids"] ?? [])))));
@@ -135,10 +156,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $error = "Le titre est obligatoire.";
     } elseif (
         !in_array($level, ["beginner", "intermediate", "advanced"], true) ||
+        !in_array($educationLevel, ["", "preschool", "primary", "middle_school", "high_school", "post_secondary_non_tertiary", "higher_education", "vocational_training", "other"], true) ||
         !in_array($format, ["online", "hybrid", "in_person"], true) ||
         !in_array($status, ["draft", "published", "unpublished"], true)
     ) {
         $error = "Une valeur de formation est invalide.";
+    } elseif (in_array(-1, $selectedAudienceIds, true)) {
+        $error = "Les publics cibles sélectionnés sont invalides.";
     } elseif ($duration !== "" && (!is_numeric($duration) || $duration < 0)) {
         $error = "La durée doit être positive.";
     } elseif ($price !== "" && (!is_numeric($price) || $price < 0)) {
@@ -147,6 +171,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         return $id > 0;
     }))) {
         $error = "Les formateurs sélectionnés sont invalides.";
+    }
+
+    if ($error === "" && $selectedAudienceIds) {
+        $placeholders = implode(",", array_fill(0, count($selectedAudienceIds), "?"));
+        $audienceCheck = $pdo->prepare("SELECT COUNT(*) FROM course_audiences WHERE id IN ($placeholders)");
+        $audienceCheck->execute($selectedAudienceIds);
+        if ((int) $audienceCheck->fetchColumn() !== count($selectedAudienceIds)) {
+            $error = "Un public cible sélectionné n'existe pas.";
+        }
     }
 
     // ? Foreign Key Validation: Teacher Verification
@@ -212,6 +245,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 prerequisites = ?, 
                 duration_hours = ?, 
                 level = ?, 
+                education_level = ?,
                 format = ?, 
                 category = ?, 
                 price = ?, 
@@ -223,6 +257,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $publishedAt = $status === "published" ? ($course["published_at"] ?: date("Y-m-d H:i:s")) : null;
 
+        $pdo->beginTransaction();
         $update->execute([
             $teacherId === "" ? null : (int) $teacherId,
             $title,
@@ -233,6 +268,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $prerequisites ?: null,
             $duration === "" ? null : $duration,
             $level,
+            $educationLevel !== "" ? $educationLevel : null,
             $format,
             $category ?: null,
             $price === "" ? 0 : $price,
@@ -247,6 +283,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             foreach ($teacherIds as $assignedTeacherId) {
                 $assignment->execute([$courseId, $assignedTeacherId]);
             }
+            $pdo->prepare("DELETE FROM course_target_audiences WHERE course_id = ?")->execute([$courseId]);
+            if ($selectedAudienceIds) {
+                $audienceAssignment = $pdo->prepare("INSERT INTO course_target_audiences (course_id, audience_id) VALUES (?, ?)");
+                foreach ($selectedAudienceIds as $audienceId) {
+                    $audienceAssignment->execute([$courseId, $audienceId]);
+                }
+            }
+            $pdo->commit();
         }
         auditLog($pdo, (int) $_SESSION["user_id"], "course_updated", "course", (int) $courseId, null, ["title" => $title]);
 

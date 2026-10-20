@@ -47,8 +47,13 @@ $sql = "SELECT
             short_description,
             cover_image,
             level,
+            education_level,
             duration_hours,
-            price
+            price,
+            (SELECT GROUP_CONCAT(ca.name ORDER BY ca.name SEPARATOR ', ')
+             FROM course_target_audiences cta
+             INNER JOIN course_audiences ca ON ca.id = cta.audience_id
+             WHERE cta.course_id = courses.id) AS target_audiences
         FROM courses
         WHERE status = 'published'
         ORDER BY published_at DESC
@@ -77,6 +82,16 @@ $levelLabels = [
     "intermediate" => $homepageContent["courses"]["level_intermediate"],
     "advanced" => $homepageContent["courses"]["level_advanced"]
 ];
+$educationLevelLabels = [
+    "preschool" => "Niveau 0 — Éducation préscolaire",
+    "primary" => "Niveau 1 — Enseignement primaire",
+    "middle_school" => "Niveau 2 — Premier cycle du secondaire",
+    "high_school" => "Niveau 3 — Deuxième cycle du secondaire",
+    "post_secondary_non_tertiary" => "Niveau 4 — Post-secondaire non supérieur",
+    "higher_education" => "Niveaux 5 à 8 — Enseignement supérieur",
+    "vocational_training" => "Formation professionnelle",
+    "other" => "Autre",
+];
 
 $homepageSectionOrder = $homepageContent["order"];
 
@@ -98,7 +113,7 @@ $homepageSectionOrder = $homepageContent["order"];
     <title><?= $homeText("navigation", "page_title") ?></title>
 
     <!-- * Primary stylesheet import -->
-    <link rel="stylesheet" href="assets/css/style.css?v=20261019-navbar">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261020-course-targets">
 
 </head>
 <body class="home-page">
@@ -378,6 +393,9 @@ $homepageSectionOrder = $homepageContent["order"];
                             <span class="course-level">
                                 <?= htmlspecialchars($levelLabels[$course["level"]] ?? $course["level"]) ?>
                             </span>
+                            <?php if (!empty($course["education_level"]) && isset($educationLevelLabels[$course["education_level"]])): ?>
+                                <span class="course-target-label"><?= htmlspecialchars($educationLevelLabels[$course["education_level"]]) ?></span>
+                            <?php endif; ?>
 
 
                             <h3>
@@ -390,6 +408,13 @@ $homepageSectionOrder = $homepageContent["order"];
                                     $course["short_description"]
                                 ) ?>
                             </p>
+                            <?php if (!empty($course["target_audiences"])): ?>
+                                <div class="course-target-labels">
+                                    <?php foreach (explode(", ", $course["target_audiences"]) as $targetAudience): ?>
+                                        <span><?= htmlspecialchars($targetAudience, ENT_QUOTES, "UTF-8") ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
 
 
                             <div class="course-info">

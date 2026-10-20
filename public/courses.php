@@ -9,6 +9,8 @@ $search = trim((string) ($_GET["search"] ?? ""));
 $level = (string) ($_GET["level"] ?? "");
 $format = (string) ($_GET["format"] ?? "");
 $category = trim((string) ($_GET["category"] ?? ""));
+$educationLevel = (string) ($_GET["education_level"] ?? "");
+$audienceId = filter_input(INPUT_GET, "audience_id", FILTER_VALIDATE_INT);
 $sort = (string) ($_GET["sort"] ?? "recent");
 $rangeInputs = [
     "min_price" => "Prix minimum",
@@ -47,6 +49,16 @@ $formatLabels = [
     "hybrid" => "Hybride",
     "in_person" => "Présentiel",
 ];
+$educationLevelLabels = [
+    "preschool" => "Niveau 0 — Éducation préscolaire",
+    "primary" => "Niveau 1 — Enseignement primaire",
+    "middle_school" => "Niveau 2 — Premier cycle du secondaire",
+    "high_school" => "Niveau 3 — Deuxième cycle du secondaire",
+    "post_secondary_non_tertiary" => "Niveau 4 — Post-secondaire non supérieur",
+    "higher_education" => "Niveaux 5 à 8 — Enseignement supérieur",
+    "vocational_training" => "Formation professionnelle",
+    "other" => "Autre",
+];
 $sortOptions = [
     "recent" => "Plus récentes",
     "title" => "Nom (A à Z)",
@@ -60,6 +72,9 @@ if (!isset($levelLabels[$level])) {
 if (!isset($formatLabels[$format])) {
     $format = "";
 }
+if (!isset($educationLevelLabels[$educationLevel])) {
+    $educationLevel = "";
+}
 if (!isset($sortOptions[$sort])) {
     $sort = "recent";
 }
@@ -72,6 +87,11 @@ $categoryStatement = $pdo->query(
 $categories = $categoryStatement->fetchAll(PDO::FETCH_COLUMN);
 if (!in_array($category, $categories, true)) {
     $category = "";
+}
+$audiences = $pdo->query("SELECT id, name FROM course_audiences ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+$audienceIds = array_map("intval", array_column($audiences, "id"));
+if ($audienceId === false || !in_array((int) $audienceId, $audienceIds, true)) {
+    $audienceId = null;
 }
 
 $where = ["courses.status = 'published'"];
@@ -93,6 +113,17 @@ if ($format !== "") {
 if ($category !== "") {
     $where[] = "courses.category = ?";
     $params[] = $category;
+}
+if ($educationLevel !== "") {
+    $where[] = "courses.education_level = ?";
+    $params[] = $educationLevel;
+}
+if ($audienceId !== null) {
+    $where[] = "EXISTS (
+        SELECT 1 FROM course_target_audiences cta
+        WHERE cta.course_id = courses.id AND cta.audience_id = ?
+    )";
+    $params[] = (int) $audienceId;
 }
 if ($ranges["min_price"] !== null) {
     $where[] = "courses.price >= ?";
@@ -123,7 +154,11 @@ $orderBy = [
 $statement = $pdo->prepare(
     "SELECT courses.id, courses.title, courses.slug, courses.short_description,
             courses.cover_image, courses.level, courses.format,
-            courses.duration_hours, courses.price, courses.category
+            courses.duration_hours, courses.price, courses.category, courses.education_level,
+            (SELECT GROUP_CONCAT(ca.name ORDER BY ca.name SEPARATOR ', ')
+             FROM course_target_audiences cta
+             INNER JOIN course_audiences ca ON ca.id = cta.audience_id
+             WHERE cta.course_id = courses.id) AS target_audiences
      FROM courses
      WHERE " . implode(" AND ", $where) . "
      ORDER BY " . $orderBy
@@ -141,7 +176,7 @@ $escape = static function ($value): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catalogue des formations - <?= $escape(platformBranding($pdo)["platform_name"]) ?></title>
     <link rel="icon" type="image/png" href="<?= $escape(platformLogoUrl($pdo)) ?>">
-    <link rel="stylesheet" href="../assets/css/style.css?v=20261019-navbar">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261020-course-catalog-cite">
 </head>
 <body class="course-catalog-page">
 <header class="navbar">
@@ -170,7 +205,7 @@ $escape = static function ($value): string {
     <header class="course-catalog-heading">
         <p class="student-eyebrow">Catalogue</p>
         <h1>Trouvez votre formation</h1>
-        <p>Filtrez par niveau, format ou catégorie pour trouver les formations qui vous correspondent.</p>
+        <p>Filtrez par public cible, niveau d’enseignement, format ou catégorie pour trouver la formation adaptée.</p>
     </header>
     <form method="get" action="courses.php" class="course-catalog-filters">
         <div class="course-catalog-filter-grid">
@@ -190,6 +225,22 @@ $escape = static function ($value): string {
                     <option value="">Tous les formats</option>
                     <?php foreach ($formatLabels as $value => $label): ?>
                         <option value="<?= $escape($value) ?>" <?= $format === $value ? "selected" : "" ?>><?= $escape($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label for="course-education-level">Niveau d’enseignement
+                <select id="course-education-level" name="education_level">
+                    <option value="">Tous les niveaux d’enseignement</option>
+                    <?php foreach ($educationLevelLabels as $value => $label): ?>
+                        <option value="<?= $escape($value) ?>" <?= $educationLevel === $value ? "selected" : "" ?>><?= $escape($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label for="course-audience">Public cible
+                <select id="course-audience" name="audience_id">
+                    <option value="">Tous les publics</option>
+                    <?php foreach ($audiences as $audience): ?>
+                        <option value="<?= (int) $audience["id"] ?>" <?= $audienceId === (int) $audience["id"] ? "selected" : "" ?>><?= $escape($audience["name"]) ?></option>
                     <?php endforeach; ?>
                 </select>
             </label>
@@ -236,7 +287,13 @@ $escape = static function ($value): string {
     </form>
     <div class="course-catalog-results">
         <?php if ($filterErrors): ?><div class="alert alert-danger" role="alert"><?= $escape(implode(" ", $filterErrors)) ?></div><?php endif; ?>
-        <p><?= count($courses) ?> formation(s) trouvée(s)</p>
+        <div class="course-catalog-results-heading">
+            <div>
+                <span class="course-catalog-section-label">À DÉCOUVRIR</span>
+                <h2>Formations disponibles</h2>
+            </div>
+            <span class="course-catalog-count"><?= count($courses) ?> formation<?= count($courses) === 1 ? "" : "s" ?></span>
+        </div>
         <?php if (!$courses): ?>
             <div class="no-courses"><h2>Aucune formation trouvée</h2><p>Essayez de modifier vos filtres ou votre recherche.</p></div>
         <?php else: ?>
@@ -262,6 +319,16 @@ $escape = static function ($value): string {
                                 <span><?= $escape($course["category"] ?: "Formation") ?></span>
                                 <span><?= number_format((float) $course["price"], 2, ",", " ") ?> TND</span>
                             </div>
+                            <?php if ($course["education_level"] && isset($educationLevelLabels[$course["education_level"]])): ?>
+                                <div class="course-target-label"><?= $escape($educationLevelLabels[$course["education_level"]]) ?></div>
+                            <?php endif; ?>
+                            <?php if ($course["target_audiences"]): ?>
+                                <div class="course-target-labels" aria-label="Publics cibles">
+                                    <?php foreach (explode(", ", $course["target_audiences"]) as $targetAudience): ?>
+                                        <span><?= $escape($targetAudience) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                             <a href="course.php?slug=<?= urlencode($course["slug"]) ?>" class="course-button">Voir la formation</a>
                         </div>
                     </article>

@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../config/i18n.php';// =============================
 $editing          = $editing ?? false;
 $error            = $error ?? "";
 $teachers         = $teachers ?? [];
+$audiences        = $audiences ?? [];
 $title            = $title ?? "";
 $slug             = $slug ?? "";
 $shortDescription = $shortDescription ?? "";
@@ -23,6 +24,8 @@ $category         = $category ?? "";
 $duration         = $duration ?? "";
 $price            = $price ?? "";
 $level            = $level ?? "beginner";
+$educationLevel   = $educationLevel ?? "";
+$selectedAudienceIds = array_map("intval", $selectedAudienceIds ?? []);
 $format           = $format ?? "online";
 $status           = $status ?? "draft";
 $teacherId        = $teacherId ?? "";
@@ -43,7 +46,7 @@ $returnUrl        = $userRole === "teacher" ? "../../teacher/dashboard.php" : "c
     <title><?= $editing ? "Modifier" : "Ajouter" ?> une formation - Administration</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
     <!-- * Main administrative layout stylesheet import -->
-    <link rel="stylesheet" href="../../assets/css/style.css?v=20260925e">
+    <link rel="stylesheet" href="../../assets/css/style.css?v=20261020-course-targets">
 
 </head>
 
@@ -197,6 +200,39 @@ $returnUrl        = $userRole === "teacher" ? "../../teacher/dashboard.php" : "c
                                 <option value="advanced" <?= $level === "advanced" ? "selected" : "" ?>>Avancé</option>
                             </select>
                         </div>
+
+                        <div class="form-group">
+                            <label for="education_level">Niveau d’enseignement</label>
+                            <select id="education_level" name="education_level">
+                                <option value="">Non précisé</option>
+                                <option value="preschool" <?= $educationLevel === "preschool" ? "selected" : "" ?>>Niveau 0 — Éducation préscolaire (maternelle, jardin d’enfants)</option>
+                                <option value="primary" <?= $educationLevel === "primary" ? "selected" : "" ?>>Niveau 1 — Enseignement primaire</option>
+                                <option value="middle_school" <?= $educationLevel === "middle_school" ? "selected" : "" ?>>Niveau 2 — Premier cycle du secondaire (collège)</option>
+                                <option value="high_school" <?= $educationLevel === "high_school" ? "selected" : "" ?>>Niveau 3 — Deuxième cycle du secondaire (lycée)</option>
+                                <option value="post_secondary_non_tertiary" <?= $educationLevel === "post_secondary_non_tertiary" ? "selected" : "" ?>>Niveau 4 — Post-secondaire non supérieur (DAEU, capacités en droit)</option>
+                                <option value="higher_education" <?= $educationLevel === "higher_education" ? "selected" : "" ?>>Niveaux 5 à 8 — Enseignement supérieur (Licence, Master, Doctorat)</option>
+                                <option value="vocational_training" <?= $educationLevel === "vocational_training" ? "selected" : "" ?>>Formation professionnelle</option>
+                                <option value="other" <?= $educationLevel === "other" ? "selected" : "" ?>>Autre</option>
+                            </select>
+                            <small>Classification CITE : niveaux 0 à 8. Les options « Formation professionnelle » et « Autre » restent disponibles pour les cas hors de cette classification.</small>
+                        </div>
+
+                        <fieldset class="form-group course-audience-fieldset">
+                            <legend>Public cible</legend>
+                            <?php if (!$audiences): ?>
+                                <p>Aucun public cible n’est disponible.</p>
+                            <?php else: ?>
+                                <div class="course-audience-options">
+                                    <?php foreach ($audiences as $audience): ?>
+                                        <label>
+                                            <input type="checkbox" name="audience_ids[]" value="<?= (int) $audience["id"] ?>" <?= in_array((int) $audience["id"], $selectedAudienceIds, true) ? "checked" : "" ?>>
+                                            <span><?= htmlspecialchars($audience["name"], ENT_QUOTES, "UTF-8") ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <small>Sélectionnez un ou plusieurs publics correspondant à cette formation.</small>
+                            <?php endif; ?>
+                        </fieldset>
 
                         <!-- * Course Delivery Format -->
                         <div class="form-group">

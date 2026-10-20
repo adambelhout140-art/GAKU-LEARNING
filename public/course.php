@@ -49,12 +49,22 @@ $contactError = "";
 $contactSuccess = false;
 $modules = [];
 $lessonsByModule = [];
+$targetAudiences = [];
 
 if (!$course) {
     http_response_code(404);
     $pageTitle = "Formation introuvable";
 } else {
     $pageTitle = $course["title"];
+    $audienceStatement = $pdo->prepare(
+        "SELECT ca.name
+         FROM course_target_audiences cta
+         INNER JOIN course_audiences ca ON ca.id = cta.audience_id
+         WHERE cta.course_id = ?
+         ORDER BY ca.name"
+    );
+    $audienceStatement->execute([(int) $course["id"]]);
+    $targetAudiences = $audienceStatement->fetchAll(PDO::FETCH_COLUMN);
     // ! CONTACT REQUEST
     // * Visitors can ask the administrator for information about this specific course.
     if ($_SERVER["REQUEST_METHOD"] === "POST" && ($_POST["action"] ?? "") === "contact_request") {
@@ -92,6 +102,16 @@ if (!$course) {
 
 $levelLabels = ["beginner" => "Débutant", "intermediate" => "Intermédiaire", "advanced" => "Avancé"];
 $formatLabels = ["online" => "En ligne", "hybrid" => "Hybride", "in_person" => "Présentiel"];
+$educationLevelLabels = [
+    "preschool" => "Niveau 0 — Éducation préscolaire",
+    "primary" => "Niveau 1 — Enseignement primaire",
+    "middle_school" => "Niveau 2 — Premier cycle du secondaire",
+    "high_school" => "Niveau 3 — Deuxième cycle du secondaire",
+    "post_secondary_non_tertiary" => "Niveau 4 — Post-secondaire non supérieur",
+    "higher_education" => "Niveaux 5 à 8 — Enseignement supérieur",
+    "vocational_training" => "Formation professionnelle",
+    "other" => "Autre",
+];
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -101,7 +121,7 @@ $formatLabels = ["online" => "En ligne", "hybrid" => "Hybride", "in_person" => "
     <title><?= htmlspecialchars($pageTitle) ?> - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
     <meta name="description" content="<?= htmlspecialchars($course ? ($course["short_description"] ?: "Découvrez cette formation professionnelle.") : "Formation introuvable") ?>">
     <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
-    <link rel="stylesheet" href="../assets/css/style.css?v=20261019-navbar">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261020-course-targets">
     <style>
         .public-course-page { background: #f7f9fc; }
         .public-course-page .navbar { background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
@@ -166,8 +186,9 @@ $formatLabels = ["online" => "En ligne", "hybrid" => "Hybride", "in_person" => "
                 <span class="hero-label"><?= htmlspecialchars($course["category"] ?: "Formation professionnelle") ?></span>
                 <h1><?= htmlspecialchars($course["title"]) ?></h1>
                 <p><?= nl2br(htmlspecialchars($course["short_description"] ?: "Découvrez cette formation professionnelle.")) ?></p>
-                <div class="course-detail-meta"><span><?= htmlspecialchars($levelLabels[$course["level"]] ?? $course["level"]) ?></span><span><?= $course["duration_hours"] !== null ? htmlspecialchars($course["duration_hours"]) . " heures" : "Durée flexible" ?></span><span><?= htmlspecialchars($formatLabels[$course["format"]] ?? $course["format"]) ?></span></div>
-                <p class="course-detail-meta-note">Formation professionnelle · Accès en ligne · Suivi de progression inclus</p>
+                <div class="course-detail-meta"><span><?= htmlspecialchars($levelLabels[$course["level"]] ?? $course["level"]) ?></span><span><?= $course["duration_hours"] !== null ? htmlspecialchars($course["duration_hours"]) . " heures" : "Durée flexible" ?></span><span><?= htmlspecialchars($formatLabels[$course["format"]] ?? $course["format"]) ?></span><?php if (!empty($course["education_level"]) && isset($educationLevelLabels[$course["education_level"]])): ?><span><?= htmlspecialchars($educationLevelLabels[$course["education_level"]]) ?></span><?php endif; ?></div>
+                <?php if ($targetAudiences): ?><div class="course-detail-audiences"><strong>Public cible</strong><?php foreach ($targetAudiences as $audienceName): ?><span><?= htmlspecialchars($audienceName, ENT_QUOTES, "UTF-8") ?></span><?php endforeach; ?></div><?php endif; ?>
+                <p class="course-detail-meta-note">Accès en ligne · Suivi de progression inclus</p>
             </div>
             <?php if ($course["cover_image"]): ?><img class="course-detail-cover" src="../uploads/courses/<?= htmlspecialchars($course["cover_image"]) ?>" alt="<?= htmlspecialchars($course["title"]) ?>"><?php endif; ?>
         </div>
