@@ -717,7 +717,7 @@ function e($value)
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Créer un quiz</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Créer un quiz</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
     <!--
         ============================================================

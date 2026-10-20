@@ -190,8 +190,8 @@ function renderRoleMessages(PDO $pdo, string $role, string $dashboardUrl, string
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Messages - GAKU LEARNING</title>
-        <link rel="icon" type="image/png" href="<?= $escape($assetPrefix) ?>assets/images/logo-mark.png">
+        <title>Messages - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+        <link rel="icon" type="image/png" href="<?= $escape(platformLogoUrl($pdo)) ?>">
         <link rel="stylesheet" href="<?= $escape($assetPrefix) ?>assets/css/style.css?v=20260925e">
     </head>
     <body class="admin-body <?= $role === "teacher" ? "teacher-view" : "" ?> <?= $role === "admin" ? "admin-messages-page" : "" ?>">
@@ -301,6 +301,7 @@ function renderRoleMessages(PDO $pdo, string $role, string $dashboardUrl, string
             </section>
         </main>
     </div>
+    <?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
     <script src="<?= $escape($assetPrefix) ?>assets/js/admin-sidebar.js?v=20260925e"></script>
     <?php if ($role === "teacher"): ?>
         <script src="<?= $escape($assetPrefix) ?>assets/js/teacher-navigation.js?v=20260925b"></script>

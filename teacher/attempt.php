@@ -150,8 +150,8 @@ function teacherAttemptEscape($value): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Détail du résultat - GAKU LEARNING</title>
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Détail du résultat - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260925f">
 </head>
 

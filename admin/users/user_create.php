@@ -525,7 +525,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <!-- =====================================================
          PAGE TITLE
          ===================================================== -->
-    <title>Ajouter un utilisateur - Administration</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Ajouter un utilisateur - Administration</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
 
     <!-- =====================================================

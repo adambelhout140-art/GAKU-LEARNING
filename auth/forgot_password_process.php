@@ -48,7 +48,7 @@ $reset_link = "http://localhost/formation-platform/auth/reset_password.php?token
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Password Reset</title><link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Password Reset</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260917g">
 
 </head>
@@ -57,7 +57,7 @@ $reset_link = "http://localhost/formation-platform/auth/reset_password.php?token
 
 <div class="login-container">
     <div class="login-box reset-link-page">
-        <div class="auth-logo"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="68" height="68"><h1>GAKU LEARNING</h1></div>
+        <div class="auth-logo"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="68" height="68"><h1><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></h1></div>
         <h2>Password Reset Link</h2>
         <p class="reset-link-intro">Your password reset link is ready.</p>
         <a class="button primary-button reset-link-button" href="<?= htmlspecialchars($reset_link) ?>">Reset your password</a>
@@ -66,6 +66,7 @@ $reset_link = "http://localhost/formation-platform/auth/reset_password.php?token
     </div>
 </div>
 
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 
 </html>

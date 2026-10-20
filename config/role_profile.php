@@ -133,8 +133,8 @@ function renderRoleProfile(PDO $pdo, string $role, string $dashboardUrl, string 
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mon profil - GAKU LEARNING</title>
-        <link rel="icon" type="image/png" href="<?= $escape($assetPrefix) ?>assets/images/logo-mark.png">
+        <title>Mon profil - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+        <link rel="icon" type="image/png" href="<?= $escape(platformLogoUrl($pdo)) ?>">
         <link rel="stylesheet" href="<?= $escape($assetPrefix) ?>assets/css/style.css?v=20260925g">
     </head>
     <body class="admin-body profile-page <?= $role === "teacher" ? "teacher-view teacher-dashboard-page" : "" ?>">
@@ -145,12 +145,12 @@ function renderRoleProfile(PDO $pdo, string $role, string $dashboardUrl, string 
         <aside class="admin-sidebar">
             <div class="admin-logo">
                 <a href="<?= $escape($assetPrefix) ?>index.php">
-                    <img src="<?= $escape($assetPrefix) ?>assets/images/logo-light.png"
-                         alt="Gaku Learning"
+                    <img                     src="<?= $escape(platformLogoUrl($pdo, "dark-bg")) ?>"
+                         alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>"
                          class="brand-logo"
                          width="34"
                          height="34">
-                    GAKU LEARNING
+                    <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>
                 </a>
             </div>
             <nav class="admin-navigation">
@@ -260,6 +260,7 @@ function renderRoleProfile(PDO $pdo, string $role, string $dashboardUrl, string 
             </section>
         </main>
     </div>
+    <?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
     </body>
     </html>
     <?php

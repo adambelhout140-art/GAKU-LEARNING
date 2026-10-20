@@ -263,9 +263,10 @@ $html = '<!doctype html><html lang="fr"><head><meta charset="UTF-8"><style>
     .answer-correct { color: #137547; font-weight: bold; }
     .answer-incorrect { color: #ad3b36; font-weight: bold; }
     .page-break { page-break-before: always; }
+    .platform-contact-pdf { margin-top: 16px; padding-top: 8px; border-top: 1px solid #d8e0e6; color: #657987; font-size: 8px; }
 </style></head><body>';
 $html .= "<h1>Rapport de suivi de formation</h1>";
-$html .= '<p class="meta">GAKU LEARNING · Généré le ' . $escape(date("d/m/Y H:i")) . "</p>";
+$html .= '<p class="meta">' . $escape(platformBranding($pdo)["platform_name"]) . ' · Généré le ' . $escape(date("d/m/Y H:i")) . "</p>";
 $html .= '<div class="identity"><strong>' . $escape($fullName) . "</strong><br>";
 $html .= "Email : " . $escape($student["email"]) . " · Téléphone : " . $escape($student["phone"] ?: "—") . "<br>";
 $html .= "CIN : " . $escape($student["cin"] ?: "—") . " · Date de naissance : " . $escape($date($student["date_of_birth"])) . "<br>";
@@ -420,7 +421,9 @@ if (!$certificates) {
     }
     $html .= "</tbody></table>";
 }
+$html .= platformContactMarkup($pdo, "platform-contact-pdf");
 $html .= "</body></html>";
+"</body></html>";
 
 $options = new Options();
 $options->set("defaultFont", "DejaVu Sans");

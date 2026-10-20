@@ -59,6 +59,8 @@ if (empty($_SESSION["csrf_token"])) {
 // ------------------------------------------------------------
 $search = trim($_GET["search"] ?? "");
 $status = $_GET["status"] ?? "";
+$level = $_GET["level"] ?? "";
+$category = trim((string) ($_GET["category"] ?? ""));
 
 // ? Escape SQL wildcards (%) and (_) in user search input to prevent search spoofing
 $searchParam = "";
@@ -67,6 +69,15 @@ if ($search !== "") {
     $searchParam = "%" . $escapedSearch . "%";
 }
 
+$categoryStatement = $pdo->query(
+    "SELECT DISTINCT category FROM courses
+     WHERE category IS NOT NULL AND TRIM(category) <> ''
+     ORDER BY category"
+);
+$categories = $categoryStatement->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array($category, $categories, true)) {
+    $category = "";
+}
 
 // ------------------------------------------------------------
 // * DATABASE QUERY BUILDER & EXECUTION
@@ -108,6 +119,18 @@ if (in_array($status, ["draft", "published", "unpublished"], true)) {
     $params["status"] = $status;
 }
 
+if (in_array($level, ["beginner", "intermediate", "advanced"], true)) {
+    $sql .= " AND courses.level = :level";
+    $params["level"] = $level;
+} else {
+    $level = "";
+}
+
+if ($category !== "") {
+    $sql .= " AND courses.category = :category";
+    $params["category"] = $category;
+}
+
 $sql .= " ORDER BY courses.updated_at DESC";
 $statement = $pdo->prepare($sql);
 $statement->execute($params);
@@ -137,7 +160,7 @@ $labels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Gestion des formations - Administration</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Gestion des formations - Administration</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
     <!-- * Main administrative layout stylesheet import -->
     <link rel="stylesheet" href="../../assets/css/style.css?v=20260925e">
@@ -222,6 +245,20 @@ $labels = [
                         <option value="draft" <?= $status === "draft" ? "selected" : "" ?>>Brouillons</option>
                         <option value="published" <?= $status === "published" ? "selected" : "" ?>>Publiées</option>
                         <option value="unpublished" <?= $status === "unpublished" ? "selected" : "" ?>>Dépubliées</option>
+                    </select>
+
+                    <select name="level">
+                        <option value="">Tous les niveaux</option>
+                        <option value="beginner" <?= $level === "beginner" ? "selected" : "" ?>>Débutant</option>
+                        <option value="intermediate" <?= $level === "intermediate" ? "selected" : "" ?>>Intermédiaire</option>
+                        <option value="advanced" <?= $level === "advanced" ? "selected" : "" ?>>Avancé</option>
+                    </select>
+
+                    <select name="category">
+                        <option value="">Toutes les catégories</option>
+                        <?php foreach ($categories as $categoryOption): ?>
+                            <option value="<?= htmlspecialchars($categoryOption) ?>" <?= $category === $categoryOption ? "selected" : "" ?>><?= htmlspecialchars($categoryOption) ?></option>
+                        <?php endforeach; ?>
                     </select>
 
                     <button class="admin-button" type="submit">Rechercher</button>
@@ -335,6 +372,4 @@ $labels = [
 <script src="../../assets/js/admin-sidebar.js?v=20260925e"></script></body>
 
 </html>
-
-
 

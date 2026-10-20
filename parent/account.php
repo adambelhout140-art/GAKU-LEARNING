@@ -51,12 +51,12 @@ function parentAccountEscape($value): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon compte parent</title>
-    <link rel="icon" type="image/png"  href="../assets/images/logo-mark.png">
+    <link rel="icon" type="image/png"  href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260925g">
 </head>
 
 <body class="student-body parent-body profile-page">
-    <header class="student-navbar"><a href="../index.php" class="student-brand"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="38" height="38">GAKU LEARNING</a>
+    <header class="student-navbar"><a href="../index.php" class="student-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="38" height="38"><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
         <nav><a href="dashboard.php">Mes enfants</a><a href="notifications.php">Notifications</a><a href="message.php">Contacter</a><a class="active" href="account.php">Mon compte</a><a href="../auth/logout.php">Déconnexion</a></nav>
     </header>
     <main class="student-dashboard account-page parent-account-page">
@@ -72,6 +72,7 @@ function parentAccountEscape($value): string
             <form method="post" class="student-form-grid"><input type="hidden" name="csrf_token" value="<?= parentAccountEscape($_SESSION["csrf_token"]) ?>"><label>Prénom<input name="first_name" value="<?= parentAccountEscape($user["first_name"] ?? "") ?>" required></label><label>Nom<input name="last_name" value="<?= parentAccountEscape($user["last_name"] ?? "") ?>" required></label><label>Email<input value="<?= parentAccountEscape($user["email"] ?? "") ?>" disabled></label><label>Téléphone<input name="phone" value="<?= parentAccountEscape($user["phone"] ?? "") ?>"></label><label>Nouveau mot de passe<input type="password" name="password" minlength="8" autocomplete="new-password"></label><label>Confirmer le mot de passe<input type="password" name="password_confirmation" minlength="8" autocomplete="new-password"></label><button class="button primary-button" type="submit">Enregistrer</button></form>
         </section>
     </main>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 
 </html>

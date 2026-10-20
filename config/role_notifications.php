@@ -59,14 +59,14 @@ function renderRoleNotifications(PDO $pdo, string $role, string $dashboardUrl, s
     $unreadCount = (int) $unreadCountStatement->fetchColumn();
     $escape = "messageEscape";
     ?>
-    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Notifications - GAKU LEARNING</title><link rel="icon" type="image/png" href="<?= $escape($assetPrefix) ?>assets/images/logo-mark.png"><link rel="stylesheet" href="<?= $escape($assetPrefix) ?>assets/css/style.css?v=20260925e"></head>
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Notifications - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title><link rel="icon" type="image/png" href="<?= $escape(platformLogoUrl($pdo)) ?>"><link rel="stylesheet" href="<?= $escape($assetPrefix) ?>assets/css/style.css?v=20260925e"></head>
     <body class="admin-body <?= $role === "teacher" ? "teacher-view" : "" ?>">
     <div class="admin-layout">
         <?php if ($role === "admin" || $role === "teacher"): ?>
             <?php require_once __DIR__ . "/../admin/config/admin_sidebar.php"; renderAdminSidebar("notifications.php"); ?>
         <?php else: ?>
         <aside class="admin-sidebar">
-            <div class="admin-logo"><a href="<?= $escape($assetPrefix) ?>index.php"><img src="<?= $escape($assetPrefix) ?>assets/images/logo-light.png" alt="Gaku Learning" class="brand-logo" width="34" height="34"><span class="brand-name">GAKU<br>LEARNING</span></a></div>
+            <div class="admin-logo"><a href="<?= $escape($assetPrefix) ?>index.php"><img src="<?= $escape(platformLogoUrl($pdo, "dark-bg")) ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="34" height="34"><span class="brand-name"><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></span></a></div>
             <nav class="admin-navigation">
                 <a href="<?= $escape($dashboardUrl) ?>" class="admin-nav-link"><span>📊</span> Tableau de bord</a>
                 <?php if ($role === "teacher"): ?>
@@ -153,6 +153,7 @@ function renderRoleNotifications(PDO $pdo, string $role, string $dashboardUrl, s
             </section>
         </main>
     </div>
+    <?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
     <script src="<?= $escape($assetPrefix) ?>assets/js/admin-sidebar.js?v=20260925e"></script>
     <?php if ($role === "teacher"): ?>
         <script src="<?= $escape($assetPrefix) ?>assets/js/teacher-navigation.js?v=20260925b"></script>

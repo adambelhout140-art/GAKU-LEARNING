@@ -205,12 +205,12 @@ if ((int) $quiz["random_order"] === 1) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= studentEscape($quiz["title"]) ?></title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title><?= studentEscape($quiz["title"]) ?></title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../../assets/css/style.css?v=20260917d">
 </head>
 
 <body class="student-body">
-    <header class="student-navbar"><a href="../../index.php" class="student-brand"><img src="../../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="42" height="42"> GAKU LEARNING</a>
+    <header class="student-navbar"><a href="../../index.php" class="student-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="42" height="42"> <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
         <?php if ($isParentViewer): ?>
            <nav><a href="../../parent/dashboard.php">Mes enfants</a><a href="../../parent/message.php">Contacter</a><a href="../../auth/logout.php">Déconnexion</a></nav>
         <?php else: ?>
@@ -218,7 +218,7 @@ if ((int) $quiz["random_order"] === 1) {
                 href="../courses/course.php?id=<?= (int) $quiz["course_id"] ?>">Ma formation</a><a
                 href="../certificates/certificates.php">Mes certificats</a><a href="../results.php">Mes résultats</a><a
                 href="../bookmarks.php">Mes favoris</a><a href="../account.php">Mon
-                compte</a><?= studentNotificationBell($pdo, $userId, "../notifications.php") ?><a
+                compte</a><a href="../messages.php">Messages</a><?= studentNotificationBell($pdo, $userId, "../notifications.php") ?><a
                 href="../../auth/logout.php">Déconnexion</a></nav>
        <?php endif; ?></header>
     <main class="student-dashboard">
@@ -236,7 +236,16 @@ if ((int) $quiz["random_order"] === 1) {
                 <?php if ($feedback): ?><?php $feedbackPurposeLabels = ["encouragement" => "Encouragement", "correction" => "Correction", "explanation" => "Explication"]; ?><section class="student-section quiz-feedback-card"><p class="student-eyebrow"><?= studentEscape($feedbackPurposeLabels[$feedback["purpose"]] ?? "Commentaire") ?></p><h2>Commentaire du formateur</h2><p><?= nl2br(studentEscape($feedback["comment"])) ?></p><small>Par <?= studentEscape(trim($feedback["first_name"] . " " . $feedback["last_name"])) ?></small></section><?php endif; ?>
                 <div class="alert <?= $result["passed"] ? "alert-success" : "alert-danger" ?>">Résultat :
                     <strong><?= studentEscape($result["percentage"]) ?>%</strong> —
-                    <?= $result["passed"] ? "Quiz réussi !" : "Quiz non réussi." ?></div><?php endif; ?>
+                    <?= $result["passed"] ? "Quiz réussi !" : "Quiz non réussi." ?></div>
+                <?php if (!$isParentViewer): ?>
+                    <div class="assessment-result-actions">
+                        <a class="button secondary-button" href="../courses/course.php?id=<?= (int) $quiz["course_id"] ?>">Retour aux quiz de la formation</a>
+                        <?php if (!(int) $result["passed"] && ($quiz["max_attempts"] === null || $attemptCount < (int) $quiz["max_attempts"])): ?>
+                            <a class="button primary-button" href="quiz.php?id=<?= (int) $quizId ?>">Réessayer le quiz</a>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
             <?php if ($errors): ?>
                 <div class="alert alert-danger"><?= studentEscape(implode(" ", $errors)) ?></div><?php endif; ?>
             <?php if (!$isParentViewer && !$result && !$assessmentSessionError && !$assessmentExpired && (!$quiz["max_attempts"] || $attemptCount < (int) $quiz["max_attempts"])): ?>
@@ -295,6 +304,7 @@ if ((int) $quiz["random_order"] === 1) {
         </section>
     </main>
 <script src="../../assets/js/assessment-guard.js"></script>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 
 </html>

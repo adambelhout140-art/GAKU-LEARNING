@@ -190,8 +190,8 @@ $active_enrollments = $stmt->fetchColumn();
         content="width=device-width, initial-scale=1.0">
 
     <!-- Browser tab title -->
-    <title>Admin Dashboard - GAKU LEARNING</title>
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Admin Dashboard - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
     <!-- Main CSS file -->
     <link

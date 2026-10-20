@@ -407,7 +407,7 @@ function getRoleClass($role)
     |--------------------------------------------------------------------------
     -->
 
-    <title>Gestion des utilisateurs</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Gestion des utilisateurs</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
 
     <!--

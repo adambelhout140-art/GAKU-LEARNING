@@ -251,8 +251,8 @@ $textareaFields = ["title", "description", "visual_description", "intro"];
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Modifier la page d'accueil - GAKU LEARNING</title>
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Modifier la page d'accueil - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260928c">
 </head>
 <body class="admin-body homepage-editor-admin">

@@ -72,13 +72,13 @@ if ($userName === "") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tableau de bord entreprise - GAKU LEARNING</title>
+    <title>Tableau de bord entreprise - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
     <link rel="stylesheet" href="../assets/css/style.css?v=20260915d">
 </head>
 <body class="admin-body">
 <div class="admin-layout">
     <aside class="admin-sidebar">
-        <div class="admin-logo"><a href="../index.php"><img src="../assets/images/logo-light.png" alt="Gaku Learning" class="brand-logo" width="34" height="34"> GAKU LEARNING</a></div>
+        <div class="admin-logo"><a href="../index.php"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "dark-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="34" height="34"> <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a></div>
         <nav class="admin-navigation">
             <a href="dashboard.php" class="admin-nav-link active"><span>📊</span> Tableau de bord</a>
             <a href="../index.php" class="admin-nav-link"><span>🌐</span> Voir le site</a>
@@ -153,5 +153,6 @@ if ($userName === "") {
 </div>
 <script src="../assets/js/dashboard-search.js?v=20260915a"></script>
 <script src="../assets/js/admin-sidebar.js?v=20260925e"></script>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 </html>

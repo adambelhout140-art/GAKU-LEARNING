@@ -56,7 +56,7 @@ if (($_GET["download"] ?? "") === "1") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificat <?= studentEscape($certificate["certificate_number"]) ?></title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Certificat <?= studentEscape($certificate["certificate_number"]) ?></title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <style>
         :root { color-scheme: light; }
         * { box-sizing: border-box; }
@@ -185,12 +185,12 @@ if (($_GET["download"] ?? "") === "1") {
     <?php if (($_GET["download"] ?? "") !== "1"): ?><div class="actions"><a href="certificate.php?id=<?= (int) $certificate["id"] ?>&download=1">Télécharger le certificat</a><a class="secondary" href="../courses/course.php?id=<?= (int) $certificate["course_id"] ?>">Voir la formation</a><a class="secondary" href="../dashboard.php">Retour au tableau de bord</a></div><?php endif; ?>
     <article class="certificate">
         <header class="certificate-header">
-            <div class="brand"><img src="../../assets/images/logo-mark.png" alt="" class="certificate-logo" width="48" height="48"><span>GAKU LEARNING</span></div>
+            <div class="brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="" class="certificate-logo" width="48" height="48"><span><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></span></div>
             <span class="document-type">Formation professionnelle<br>Certificat officiel</span>
         </header>
         <p class="certificate-kicker">Attestation de réussite</p>
         <h1>Certificat de réussite</h1>
-        <p class="certificate-intro">GAKU LEARNING certifie que</p>
+        <p class="certificate-intro"><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?> certifie que</p>
         <h2 class="student-name"><?= studentEscape(trim($certificate["first_name"] . " " . $certificate["last_name"])) ?></h2>
         <p class="course-label">a suivi avec succès le parcours de formation</p>
         <h2 class="course-name"><?= studentEscape($certificate["course_title"]) ?></h2>
@@ -215,7 +215,7 @@ if (($_GET["download"] ?? "") === "1") {
                 Délivré le <?= date("d/m/Y", strtotime($certificate["issue_date"])) ?>
                 <div class="certificate-number">N° <?= studentEscape($certificate["certificate_number"]) ?></div>
             </div>
-            <div class="signature">Service de formation<br>GAKU LEARNING</div>
+            <div class="signature">Service de formation<br><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></div>
             <div class="verification">Document nominatif<br>Identifiant unique de délivrance</div>
         </footer>
     </article>

@@ -147,7 +147,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             if ($materialTitle === "" || !in_array($type, ["text", "video", "file"], true)) { $error = "Chaque support doit avoir un titre et un type valide."; break; }
             if ($type === "text" && $materialContent === "") { $error = "Un support texte doit contenir du texte."; break; }
             if ($type === "video" && (!filter_var($materialUrl, FILTER_VALIDATE_URL) || !preg_match('/(youtube\.com|youtu\.be|vimeo\.com)/i', $materialUrl))) { $error = "La vidéo doit être un lien YouTube ou Vimeo valide."; break; }
-            if ($type === "file" && ($_FILES["material_file"]["error"][$index] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) { $error = "Veuillez sélectionner un fichier pour chaque support fichier."; break; }
+            if ($type === "file") {
+                $fileError = $_FILES["material_file"]["error"][$index] ?? UPLOAD_ERR_NO_FILE;
+                if ($fileError !== UPLOAD_ERR_OK) { $error = "Veuillez sélectionner un fichier PDF pour chaque support fichier."; break; }
+                $temporaryFile = $_FILES["material_file"]["tmp_name"][$index] ?? "";
+                $mimeType = $temporaryFile !== "" ? (new finfo(FILEINFO_MIME_TYPE))->file($temporaryFile) : false;
+                if ($mimeType !== "application/pdf" || (int) ($_FILES["material_file"]["size"][$index] ?? 0) > 20 * 1024 * 1024) {
+                    $error = "Chaque support doit être un PDF valide de 20 Mo maximum.";
+                    break;
+                }
+            }
         }
     }
 
@@ -200,9 +209,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $materialUrl = $type === "video" ? trim($materialUrls[$index] ?? "") : null;
             $filePath = $fileName = $mimeType = null; $fileSize = null;
             if ($type === "file" && ($_FILES["material_file"]["error"][$index] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-                $allowedFiles = ["application/pdf" => "pdf", "application/msword" => "doc", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx", "application/vnd.ms-powerpoint" => "ppt", "application/vnd.openxmlformats-officedocument.presentationml.presentation" => "pptx"];
+                $allowedFiles = ["application/pdf" => "pdf"];
                 $temporaryFile = $_FILES["material_file"]["tmp_name"][$index]; $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($temporaryFile);
-                if (!isset($allowedFiles[$mimeType]) || $_FILES["material_file"]["size"][$index] > 20 * 1024 * 1024) { $error = "Fichier de support invalide."; break; }
+                if (!isset($allowedFiles[$mimeType]) || $_FILES["material_file"]["size"][$index] > 20 * 1024 * 1024) { $error = "Le support doit être un PDF de 20 Mo maximum."; break; }
                 $fileName = basename($_FILES["material_file"]["name"][$index]); $filePath = bin2hex(random_bytes(16)) . "." . $allowedFiles[$mimeType]; if (!is_dir("../../uploads/documents")) { mkdir("../../uploads/documents", 0755, true); } move_uploaded_file($temporaryFile, "../../uploads/documents/" . $filePath); $fileSize = $_FILES["material_file"]["size"][$index];
             }
             $materialInsert->execute([$lessonId, $materialTitle, $type, $materialContent, $filePath, $fileName, $fileSize, $mimeType, $materialUrl, 1]);
@@ -228,7 +237,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Modifier une leçon - Administration</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Modifier une leçon - Administration</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
     <!-- * Main administrative layout stylesheet import -->
     <link rel="stylesheet" href="../../assets/css/style.css?v=20260925e">
@@ -360,14 +369,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         <fieldset class="lesson-materials">
                             <legend>Ajouter des supports</legend>
-                            <p class="materials-help">Ajoutez un support texte, vidéo ou fichier.</p>
+                            <p class="materials-help">Ajoutez un support texte, vidéo ou fichier PDF (20 Mo maximum). Les étudiants consulteront les PDF dans la leçon.</p>
                             <div id="materials-list">
                                 <div class="material-row">
                                     <input type="text" name="material_title[]" placeholder="Titre du support">
                                     <select name="material_type[]" class="material-type"><option value="text">Texte</option><option value="video">Vidéo</option><option value="file">Fichier</option></select>
                                     <textarea name="material_content[]" class="material-content" placeholder="Contenu du texte" rows="3"></textarea>
                                     <input type="url" name="material_url[]" placeholder="URL YouTube ou Vimeo" class="material-url">
-                                    <input type="file" name="material_file[]" class="material-file" accept=".pdf,.doc,.docx,.ppt,.pptx">
+                                    <input type="file" name="material_file[]" class="material-file" accept=".pdf,application/pdf">
                                     <button type="button" class="remove-material">Supprimer</button>
                                 </div>
                             </div>
@@ -444,7 +453,3 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <script src="../../assets/js/admin-sidebar.js?v=20260925e"></script></body>
 
 </html>
-
-
-
-

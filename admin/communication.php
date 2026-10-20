@@ -14,6 +14,7 @@ if (!in_array($_SESSION["user_role"] ?? "", ["admin", "teacher"], true)) {
     http_response_code(403);
     exit("Accès interdit.");
 }
+require_once __DIR__ . "/../config/database.php";
 $isTeacher = ($_SESSION["user_role"] ?? "") === "teacher";
 $communicationMessagesUrl = $isTeacher ? "../teacher/messages.php" : "messages.php";
 $communicationComposeUrl = $isTeacher ? "../teacher/message.php" : "message.php";
@@ -23,8 +24,8 @@ $communicationComposeUrl = $isTeacher ? "../teacher/message.php" : "message.php"
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Communication - GAKU LEARNING</title>
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Communication - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260925e">
     <style>
         .communication-grid {

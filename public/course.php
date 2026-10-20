@@ -98,10 +98,10 @@ $formatLabels = ["online" => "En ligne", "hybrid" => "Hybride", "in_person" => "
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($pageTitle) ?> - GAKU LEARNING</title>
+    <title><?= htmlspecialchars($pageTitle) ?> - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
     <meta name="description" content="<?= htmlspecialchars($course ? ($course["short_description"] ?: "Découvrez cette formation professionnelle.") : "Formation introuvable") ?>">
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
-    <link rel="stylesheet" href="../assets/css/style.css?v=20260925f">
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
+    <link rel="stylesheet" href="../assets/css/style.css?v=20261019-navbar">
     <style>
         .public-course-page { background: #f7f9fc; }
         .public-course-page .navbar { background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
@@ -134,10 +134,18 @@ $formatLabels = ["online" => "En ligne", "hybrid" => "Hybride", "in_person" => "
 <body class="public-course-page">
 <header class="navbar">
     <div class="container navbar-content">
-        <a href="../index.php" class="logo"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="42" height="42"> GAKU LEARNING</a>
+        <a href="../index.php" class="logo"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="42" height="42"> <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
         <nav>
-            <a href="../index.php">Accueil</a>
-            <a href="../index.php#courses">Formations</a>
+            <form class="course-nav-search" method="get" action="courses.php" role="search">
+                <label class="visually-hidden" for="nav-course-search">Rechercher une formation</label>
+                <input id="nav-course-search" type="search" name="search" placeholder="Rechercher...">
+                <button type="submit" aria-label="Rechercher">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+                </button>
+            </form>
+            <?php foreach (platformNavbarLinks($pdo) as $navLink): ?>
+                <a href="<?= htmlspecialchars($navLink["href"], ENT_QUOTES, "UTF-8") ?>"<?= $navLink["external"] ? ' target="_blank" rel="noopener noreferrer"' : "" ?>><?= htmlspecialchars($navLink["label"], ENT_QUOTES, "UTF-8") ?></a>
+            <?php endforeach; ?>
             <?php if (isset($_SESSION["user_id"])): ?>
                 <a href="../<?= $_SESSION["user_role"] === "admin" ? "admin/dashboard.php" : ($_SESSION["user_role"] === "teacher" ? "teacher/dashboard.php" : ($_SESSION["user_role"] === "company_manager" ? "company/dashboard.php" : "student/dashboard.php")) ?>">Tableau de bord</a>
             <?php else: ?>
@@ -169,8 +177,9 @@ $formatLabels = ["online" => "En ligne", "hybrid" => "Hybride", "in_person" => "
         <article class="course-copy-section"><h2>Objectifs</h2><p><?= nl2br(htmlspecialchars($course["objectives"] ?: "Objectifs à venir.")) ?></p></article>
         <article class="course-copy-section"><h2>Prérequis</h2><p><?= nl2br(htmlspecialchars($course["prerequisites"] ?: "Aucun prérequis indiqué.")) ?></p></article>
         <article class="course-copy-section"><h2>Programme</h2><?php if ($modules): ?><div class="public-modules"><?php foreach ($modules as $module): ?><div class="public-module"><h3><?= htmlspecialchars($module["title"]) ?></h3><?php if ($module["description"]): ?><p><?= htmlspecialchars($module["description"]) ?></p><?php endif; ?><?php if (!empty($lessonsByModule[$module["id"]])): ?><ul><?php foreach ($lessonsByModule[$module["id"]] as $lesson): ?><li><?= htmlspecialchars($lesson["title"]) ?><?php if ($lesson["estimated_minutes"]): ?><small><?= (int) $lesson["estimated_minutes"] ?> min</small><?php endif; ?></li><?php endforeach; ?></ul><?php else: ?><p>Aucune leçon publiée pour le moment.</p><?php endif; ?></div><?php endforeach; ?></div><?php else: ?><p>Le programme sera bientôt disponible.</p><?php endif; ?></article>
-    </div><aside class="course-enrollment-panel"><h2>Commencer la formation</h2><strong class="course-price"><?= number_format((float) $course["price"], 2, ",", " ") ?> TND</strong><p>Accédez aux leçons et aux évaluations depuis votre espace personnel.</p><?php if (isset($_SESSION["user_id"])): ?><a href="../<?= $_SESSION["user_role"] === "student" ? "student/dashboard.php" : "index.php" ?>" class="button primary-button">Accéder à mon espace</a>        <?php else: ?><a href="../auth/login.php" class="button primary-button">Se connecter pour accéder</a><a href="../auth/register.php?course_id=<?= (int) $course["id"] ?>" class="button secondary-button">Demander un accès</a><?php endif; ?><p class="course-teacher">Formateur(s) : <strong><?= htmlspecialchars(trim($course["teacher_names"] ?? "") ?: "Équipe GAKU LEARNING") ?></strong></p><div class="course-contact"><h2>Besoin d'informations ?</h2><?php if ($contactSuccess): ?><div class="alert alert-success">Votre demande a bien été envoyée à l'administrateur.</div><?php elseif ($contactError !== ""): ?><div class="alert alert-danger"><?= htmlspecialchars($contactError) ?></div><?php endif; ?><form method="POST" class="course-contact-form"><input type="hidden" name="action" value="contact_request"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION["contact_csrf_token"]) ?>"><label for="first_name">Prénom *</label><input type="text" id="first_name" name="first_name" required><label for="last_name">Nom</label><input type="text" id="last_name" name="last_name"><label for="email">Email *</label><input type="email" id="email" name="email" required><label for="phone">Téléphone</label><input type="tel" id="phone" name="phone"><label for="company_name">Entreprise</label><input type="text" id="company_name" name="company_name"><label for="message">Message *</label><textarea id="message" name="message" rows="4" required></textarea><button type="submit" class="button primary-button">Envoyer la demande</button></form></div></aside></div></section>
+    </div><aside class="course-enrollment-panel"><h2>Commencer la formation</h2><strong class="course-price"><?= number_format((float) $course["price"], 2, ",", " ") ?> TND</strong><p>Accédez aux leçons et aux évaluations depuis votre espace personnel.</p><?php if (isset($_SESSION["user_id"])): ?><a href="../<?= $_SESSION["user_role"] === "student" ? "student/dashboard.php" : "index.php" ?>" class="button primary-button">Accéder à mon espace</a>        <?php else: ?><a href="../auth/login.php" class="button primary-button">Se connecter pour accéder</a><a href="../auth/register.php?course_id=<?= (int) $course["id"] ?>" class="button secondary-button">Demander un accès</a><?php endif; ?><p class="course-teacher">Formateur(s) : <strong><?= htmlspecialchars(trim($course["teacher_names"] ?? "") ?: "Équipe " . platformBranding($pdo)["platform_name"]) ?></strong></p><div class="course-contact"><h2>Besoin d'informations ?</h2><?php if ($contactSuccess): ?><div class="alert alert-success">Votre demande a bien été envoyée à l'administrateur.</div><?php elseif ($contactError !== ""): ?><div class="alert alert-danger"><?= htmlspecialchars($contactError) ?></div><?php endif; ?><form method="POST" class="course-contact-form"><input type="hidden" name="action" value="contact_request"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION["contact_csrf_token"]) ?>"><label for="first_name">Prénom *</label><input type="text" id="first_name" name="first_name" required><label for="last_name">Nom</label><input type="text" id="last_name" name="last_name"><label for="email">Email *</label><input type="email" id="email" name="email" required><label for="phone">Téléphone</label><input type="tel" id="phone" name="phone"><label for="company_name">Entreprise</label><input type="text" id="company_name" name="company_name"><label for="message">Message *</label><textarea id="message" name="message" rows="4" required></textarea><button type="submit" class="button primary-button">Envoyer la demande</button></form></div></aside></div></section>
 <?php endif; ?>
 </main>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 </html>

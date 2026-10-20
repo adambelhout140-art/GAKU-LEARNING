@@ -41,8 +41,8 @@ function reportSelectionEscape($value): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Télécharger un rapport - GAKU LEARNING</title>
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Télécharger un rapport - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260925e">
     <style>
         .report-selection-card { max-width: 760px; margin: 30px auto; padding: 30px; }
@@ -57,7 +57,7 @@ function reportSelectionEscape($value): string
 </head>
 <body class="student-body parent-body">
     <header class="student-navbar">
-        <a href="../index.php" class="student-brand"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="38" height="38">GAKU LEARNING</a>
+        <a href="../index.php" class="student-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="38" height="38"><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
         <nav><a href="dashboard.php" class="active">Mes enfants</a><a href="account.php">Mon compte</a><a href="../auth/logout.php">Déconnexion</a></nav>
     </header>
     <main class="student-dashboard">
@@ -109,5 +109,6 @@ function reportSelectionEscape($value): string
             });
         }());
     </script>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 </html>

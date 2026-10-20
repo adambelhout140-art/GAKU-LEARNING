@@ -43,7 +43,7 @@ function adminCertificatesEscape($value): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificats - Administration</title>
-    <link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260925e">
 </head>
 

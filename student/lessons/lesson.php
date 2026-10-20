@@ -27,6 +27,42 @@ if (!$lesson) {
     exit("Leçon introuvable ou accès non autorisé.");
 }
 
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS lesson_material_views (
+        user_id INT UNSIGNED NOT NULL,
+        material_id INT UNSIGNED NOT NULL,
+        page_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+        opened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_viewed_at TIMESTAMP NULL DEFAULT NULL,
+        PRIMARY KEY (user_id, material_id),
+        KEY idx_lesson_material_views_material (material_id),
+        CONSTRAINT fk_lesson_material_views_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        CONSTRAINT fk_lesson_material_views_material FOREIGN KEY (material_id) REFERENCES materials (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+);
+$pdo->exec(
+    "CREATE TABLE IF NOT EXISTS lesson_material_page_views (
+        user_id INT UNSIGNED NOT NULL,
+        material_id INT UNSIGNED NOT NULL,
+        page_number SMALLINT UNSIGNED NOT NULL,
+        viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, material_id, page_number),
+        KEY idx_lesson_material_page_views_material (material_id),
+        CONSTRAINT fk_lesson_material_page_views_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        CONSTRAINT fk_lesson_material_page_views_material FOREIGN KEY (material_id) REFERENCES materials (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+);
+
+$materialsStatement = $pdo->prepare(
+    "SELECT id, title, type, content, file_path, file_name, file_size, mime_type, external_url
+     FROM materials WHERE lesson_id = ? ORDER BY position, id"
+);
+$materialsStatement->execute([$lessonId]);
+$materials = $materialsStatement->fetchAll(PDO::FETCH_ASSOC);
+$pdfMaterials = array_values(array_filter($materials, static function (array $material): bool {
+    return $material["type"] === "file" && strtolower((string) $material["mime_type"]) === "application/pdf";
+}));
+
 // Per-lesson comprehension check
 $checkQuestionStatement = $pdo->prepare(
     "SELECT id, question_text, position FROM lesson_check_questions WHERE lesson_id = ? ORDER BY position, id"
@@ -63,6 +99,52 @@ foreach ($checkQuestions as $checkQuestion) {
         break;
     }
 }
+
+$documentViewStatus = [];
+if ($pdfMaterials) {
+    $viewStatement = $pdo->prepare(
+        "SELECT v.material_id, v.page_count, v.opened_at,
+                COUNT(p.page_number) AS pages_viewed,
+                MAX(p.viewed_at) AS last_page_viewed_at
+         FROM lesson_material_views v
+         LEFT JOIN lesson_material_page_views p
+           ON p.user_id = v.user_id AND p.material_id = v.material_id
+         WHERE v.user_id = ? AND v.material_id IN (" . implode(",", array_fill(0, count($pdfMaterials), "?")) . ")
+         GROUP BY v.material_id, v.page_count, v.opened_at"
+    );
+    $viewStatement->execute(array_merge([$userId], array_column($pdfMaterials, "id")));
+    foreach ($viewStatement->fetchAll(PDO::FETCH_ASSOC) as $view) {
+        $documentViewStatus[(int) $view["material_id"]] = [
+            "opened" => true,
+            "page_count" => (int) $view["page_count"],
+            "pages_viewed" => (int) $view["pages_viewed"],
+            "viewed" => (int) $view["page_count"] > 0
+                && (int) $view["pages_viewed"] >= (int) $view["page_count"],
+            "pages_seen" => [],
+            "last_viewed_at" => $view["last_page_viewed_at"],
+        ];
+    }
+    $pageStatement = $pdo->prepare(
+        "SELECT material_id, page_number
+         FROM lesson_material_page_views
+         WHERE user_id = ? AND material_id IN (" . implode(",", array_fill(0, count($pdfMaterials), "?")) . ")"
+    );
+    $pageStatement->execute(array_merge([$userId], array_column($pdfMaterials, "id")));
+    foreach ($pageStatement->fetchAll(PDO::FETCH_ASSOC) as $pageView) {
+        $documentViewStatus[(int) $pageView["material_id"]]["pages_seen"][] = (int) $pageView["page_number"];
+    }
+}
+$allDocumentsViewed = !$pdfMaterials;
+if ($pdfMaterials) {
+    $allDocumentsViewed = true;
+    foreach ($pdfMaterials as $pdfMaterial) {
+        if (empty($documentViewStatus[(int) $pdfMaterial["id"]]["viewed"])) {
+            $allDocumentsViewed = false;
+            break;
+        }
+    }
+}
+$quizPassed = $checksRequired && $checksAllCorrect;
 
 $noteStatement = $pdo->prepare("SELECT note FROM lesson_notes WHERE user_id = ? AND lesson_id = ? LIMIT 1");
 $noteStatement->execute([$userId, $lessonId]);
@@ -121,9 +203,105 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["ajax"])) {
         exit;
     }
 
-    $checksBlockCompletion = false;
-    if ($checkQuestions) {
-        $checksBlockCompletion = !$checksAllCorrect;
+    if ($ajaxType === "document_opened") {
+        $materialId = filter_input(INPUT_POST, "material_id", FILTER_VALIDATE_INT);
+        $pageCount = filter_input(INPUT_POST, "page_count", FILTER_VALIDATE_INT);
+        $materialCheck = $pdo->prepare(
+            "SELECT id FROM materials
+             WHERE id = ? AND lesson_id = ? AND type = 'file' AND mime_type = 'application/pdf'
+             LIMIT 1"
+        );
+        $materialCheck->execute([$materialId ?: 0, $lessonId]);
+        if (!$materialId || $pageCount < 1 || $pageCount > 1000 || !$materialCheck->fetchColumn()) {
+            http_response_code(400);
+            echo json_encode(["ok" => false, "error" => "invalid_document"]);
+            exit;
+        }
+
+        $existingDocument = $pdo->prepare(
+            "SELECT page_count FROM lesson_material_views WHERE user_id = ? AND material_id = ? LIMIT 1"
+        );
+        $existingDocument->execute([$userId, $materialId]);
+        $oldPageCount = $existingDocument->fetchColumn();
+        $resetProgress = $oldPageCount !== false && (int) $oldPageCount !== $pageCount;
+        if ($resetProgress) {
+            $pdo->prepare(
+                "DELETE FROM lesson_material_page_views WHERE user_id = ? AND material_id = ?"
+            )->execute([$userId, $materialId]);
+        }
+        $saveOpened = $pdo->prepare(
+            "INSERT INTO lesson_material_views (user_id, material_id, page_count, opened_at)
+             VALUES (?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE
+                opened_at = IF(page_count <> VALUES(page_count), NOW(), opened_at),
+                last_viewed_at = IF(page_count <> VALUES(page_count), NULL, last_viewed_at),
+                page_count = VALUES(page_count)"
+        );
+        $saveOpened->execute([$userId, $materialId, $pageCount]);
+        echo json_encode(["ok" => true, "reset" => $resetProgress]);
+        exit;
+    }
+
+    if ($ajaxType === "document_page_view") {
+        $materialId = filter_input(INPUT_POST, "material_id", FILTER_VALIDATE_INT);
+        $pageNumber = filter_input(INPUT_POST, "page_number", FILTER_VALIDATE_INT);
+        $pageCount = filter_input(INPUT_POST, "page_count", FILTER_VALIDATE_INT);
+        $materialCheck = $pdo->prepare(
+            "SELECT id FROM materials
+             WHERE id = ? AND lesson_id = ? AND type = 'file' AND mime_type = 'application/pdf'
+             LIMIT 1"
+        );
+        $materialCheck->execute([$materialId ?: 0, $lessonId]);
+        if (
+            !$materialId
+            || $pageNumber < 1
+            || $pageCount < 1
+            || $pageCount > 1000
+            || $pageNumber > $pageCount
+            || !$materialCheck->fetchColumn()
+        ) {
+            http_response_code(400);
+            echo json_encode(["ok" => false, "error" => "invalid_document_page"]);
+            exit;
+        }
+
+        $storedView = $pdo->prepare(
+            "SELECT page_count FROM lesson_material_views WHERE user_id = ? AND material_id = ? LIMIT 1"
+        );
+        $storedView->execute([$userId, $materialId]);
+        $storedPageCount = $storedView->fetchColumn();
+        if ($storedPageCount === false || (int) $storedPageCount !== $pageCount) {
+            http_response_code(409);
+            echo json_encode(["ok" => false, "error" => "document_not_opened"]);
+            exit;
+        }
+
+        $savePage = $pdo->prepare(
+            "INSERT IGNORE INTO lesson_material_page_views (user_id, material_id, page_number)
+             VALUES (?, ?, ?)"
+        );
+        $savePage->execute([$userId, $materialId, $pageNumber]);
+        $pdo->prepare(
+            "UPDATE lesson_material_views SET last_viewed_at = NOW() WHERE user_id = ? AND material_id = ?"
+        )->execute([$userId, $materialId]);
+
+        $viewCounts = $pdo->prepare(
+            "SELECT v.page_count, COUNT(p.page_number) AS pages_viewed
+             FROM lesson_material_views v
+             LEFT JOIN lesson_material_page_views p
+               ON p.user_id = v.user_id AND p.material_id = v.material_id
+             WHERE v.user_id = ? AND v.material_id = ?
+             GROUP BY v.page_count"
+        );
+        $viewCounts->execute([$userId, $materialId]);
+        $viewCount = $viewCounts->fetch(PDO::FETCH_ASSOC);
+        echo json_encode([
+            "ok" => true,
+            "viewed" => (int) $viewCount["pages_viewed"] >= (int) $viewCount["page_count"],
+            "pages_viewed" => (int) $viewCount["pages_viewed"],
+            "page_count" => (int) $viewCount["page_count"],
+        ]);
+        exit;
     }
 
     $percent = filter_input(INPUT_POST, "progress_percent", FILTER_VALIDATE_INT);
@@ -143,7 +321,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["ajax"])) {
         $percent = max($percent, (int) $existing["progress_percent"]);
         $completed = $completed || (int) $existing["completed"];
     }
-    if ($checksBlockCompletion && (!$existing || !(int) $existing["completed"])) {
+    $hasCompletionEvidence = !$pdfMaterials || $allDocumentsViewed || $quizPassed;
+    $checksBlockCompletion = $checksRequired && !$checksAllCorrect && (!$pdfMaterials || !$allDocumentsViewed);
+    $documentsBlockCompletion = $pdfMaterials && !$allDocumentsViewed && !$quizPassed;
+    if ($completed && (!$hasCompletionEvidence || $checksBlockCompletion || $documentsBlockCompletion)) {
         $completed = 0;
         $percent = min($percent, 99);
     }
@@ -161,10 +342,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["ajax"])) {
             last_position = VALUES(last_position),
             total_time_seconds = GREATEST(total_time_seconds, VALUES(total_time_seconds)),
             started_at = COALESCE(started_at, VALUES(started_at)),
-            completed_at = COALESCE(completed_at, VALUES(completed_at))"
+            completed_at = IF(
+                VALUES(completed) = 1,
+                COALESCE(completed_at, VALUES(completed_at)),
+                NULL
+            )"
     );
     $save->execute([$userId, $lessonId, $completed, $percent, $position, $timeSpent, $completed ? date("Y-m-d H:i:s") : null]);
-    echo json_encode(["ok" => true, "progress_percent" => $percent, "completed" => (bool) $completed, "checks_blocking" => $checksBlockCompletion]);
+    echo json_encode([
+        "ok" => true,
+        "progress_percent" => $percent,
+        "completed" => (bool) $completed,
+        "checks_blocking" => $checksBlockCompletion,
+        "documents_blocking" => (bool) $documentsBlockCompletion,
+        "documents_viewed" => $allDocumentsViewed,
+        "quiz_passed" => $quizPassed,
+    ]);
     exit;
 }
 
@@ -175,13 +368,10 @@ $progress = $progressStatement->fetch(PDO::FETCH_ASSOC) ?: [
     "progress_percent" => 0,
     "last_position" => 0
 ];
-
-$materialsStatement = $pdo->prepare(
-    "SELECT id, title, type, content, file_path, file_name, file_size, mime_type, external_url
-     FROM materials WHERE lesson_id = ? ORDER BY position, id"
-);
-$materialsStatement->execute([$lessonId]);
-$materials = $materialsStatement->fetchAll(PDO::FETCH_ASSOC);
+if (($pdfMaterials && !$allDocumentsViewed && !$quizPassed) || ($checksRequired && !$checksAllCorrect && !$pdfMaterials)) {
+    $progress["completed"] = 0;
+    $progress["progress_percent"] = min(99, (int) $progress["progress_percent"]);
+}
 
 $wordCount = !empty($lesson["content"]) ? str_word_count(strip_tags($lesson["content"])) : 0;
 foreach ($materials as $material) {
@@ -216,8 +406,8 @@ $next = $navigation[$currentIndex + 1] ?? null;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= studentEscape($lesson["title"]) ?> - Formation</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
-    <link rel="stylesheet" href="../../assets/css/style.css?v=20260917d">
+    <title><?= studentEscape($lesson["title"]) ?> - Formation</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
+    <link rel="stylesheet" href="../../assets/css/style.css?v=20261019-document-tracking">
     <style>
         /* Floating Left Notes Sidebar - Word / Notion Rich Text Style */
         .floating-notes-sidebar {
@@ -471,13 +661,14 @@ $next = $navigation[$currentIndex + 1] ?? null;
 
 <body class="student-body student-lesson-body">
     <header class="student-navbar">
-        <a href="../../index.php" class="student-brand"><img src="../../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="42" height="42"> GAKU LEARNING</a>
+        <a href="../../index.php" class="student-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="42" height="42"> <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
         <nav>
             <a href="../dashboard.php">Tableau de bord</a>
             <a href="../courses/course.php?id=<?= (int) $lesson["course_id"] ?>">Ma formation</a>
             <a href="../certificates/certificates.php">Mes certificats</a>
             <a href="../results.php">Mes résultats</a>
             <a href="../bookmarks.php">Mes favoris</a>
+            <a href="../messages.php">Messages</a>
             <a href="../account.php">Mon compte</a>
             <?= studentNotificationBell($pdo, $userId, "../notifications.php") ?>
             <button type="button" class="student-theme-toggle" id="theme-toggle" aria-label="Activer le thème clair">☀ï¸ Clair</button>
@@ -509,7 +700,6 @@ $next = $navigation[$currentIndex + 1] ?? null;
                 <button type="button" data-command="removeFormat" title="Effacer le formatage">🧹</button>
                 <span class="toolbar-divider"></span>
                 <button type="button" data-note-action="copy" title="Copier le contenu">Copier</button>
-                <button type="button" data-note-action="download" title="Télécharger les notes">Télécharger</button>
                 <button type="button" data-note-action="clear" title="Effacer les notes">Effacer</button>
             </div>
 
@@ -541,7 +731,17 @@ $next = $navigation[$currentIndex + 1] ?? null;
                     <?php if ($material["type"] === "text"): ?><div class="lesson-content"><?= studentLessonHtml($material["content"] ?? "") ?></div>
                     <?php elseif ($material["type"] === "video"): $embedUrl = studentVideoEmbedUrl($material["external_url"] ?? ""); $provider = strpos($embedUrl, "vimeo.com") !== false ? "vimeo" : (strpos($embedUrl, "youtube.com") !== false ? "youtube" : ""); ?>
                         <?php if ($embedUrl): ?><div class="student-video" data-video-provider="<?= studentEscape($provider) ?>"><iframe class="student-tracked-video" data-material-id="<?= (int) $material["id"] ?>" src="<?= studentEscape($embedUrl) ?>" title="<?= studentEscape($material["title"]) ?>" allowfullscreen loading="lazy"></iframe></div><?php else: ?><p>Cette vidéo ne peut pas être affichée.</p><?php endif; ?>
-                    <?php elseif ($material["type"] === "file"): ?><p><a class="button secondary-button" href="material_download.php?id=<?= (int) $material["id"] ?>">⬇ Télécharger <?= studentEscape($material["file_name"] ?: "le support") ?><?php if ($material["file_size"]): ?> (<?= number_format((int) $material["file_size"] / 1048576, 2, ",", " ") ?> Mo)<?php endif; ?></a></p><?php endif; ?>
+                    <?php elseif ($material["type"] === "file"): ?>
+                        <?php if (strtolower((string) $material["mime_type"]) === "application/pdf"): ?>
+                            <?php $materialView = $documentViewStatus[(int) $material["id"]] ?? ["opened" => false, "page_count" => 0, "pages_viewed" => 0, "viewed" => false, "pages_seen" => []]; ?>
+                            <div class="student-document-viewer" data-pdf-url="material_view.php?id=<?= (int) $material["id"] ?>" data-view-url="lesson.php?id=<?= (int) $lessonId ?>" data-material-id="<?= (int) $material["id"] ?>" data-csrf="<?= studentEscape($_SESSION["csrf_token"]) ?>" data-viewed="<?= $materialView["viewed"] ? "1" : "0" ?>" data-pages-viewed="<?= (int) $materialView["pages_viewed"] ?>" data-pages-seen="<?= studentEscape(json_encode($materialView["pages_seen"])) ?>" aria-label="<?= studentEscape($material["title"]) ?>">
+                                <p class="student-document-status" role="status">Chargement du document…</p>
+                            </div>
+                            <p class="student-document-note" id="document-status-<?= (int) $material["id"] ?>" role="status"><?= $materialView["viewed"] ? "Document consulté." : ($materialView["opened"] ? "Document ouvert — pages consultées : " . (int) $materialView["pages_viewed"] . "/" . (int) $materialView["page_count"] . "." : "Ouvrez et consultez chaque page de ce document, ou réussissez le contrôle de compréhension ci-dessous.") ?></p>
+                        <?php else: ?>
+                            <p class="student-document-note">Ce fichier n'est pas disponible pour la consultation intégrée. Demandez à votre formateur de le remplacer par un PDF.</p>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </article>
             <?php endforeach; ?>
             <?php if ($checkQuestions): ?>
@@ -572,7 +772,13 @@ $next = $navigation[$currentIndex + 1] ?? null;
                 <p><span id="auto-progress-text">Progression : <?= (int) $progress["progress_percent"] ?>%</span> <span id="auto-progress-done" <?= $progress["completed"] ? "" : 'style="display:none"' ?>>· Terminée ✓</span></p>
                 <div class="student-progress"><span id="auto-progress-bar" style="width: <?= (int) $progress["progress_percent"] ?>%"></span></div>
                 <small id="auto-progress-hint" style="display:none"></small>
-                <?php if ($checksRequired && !$checksAllCorrect): ?><small>Répondez correctement au contrôle de compréhension ci-dessus pour pouvoir valider cette leçon.</small><?php else: ?><small>Cette progression est calculée automatiquement (lecture active de la vidéo et du contenu).</small><?php endif; ?>
+                <?php if ($pdfMaterials): ?>
+                    <small id="lesson-completion-requirement"><?= $allDocumentsViewed ? "Documents consultés. Vous pouvez valider cette leçon." : ($quizPassed ? "Contrôle réussi. Vous pouvez valider cette leçon sans consulter chaque page." : "Consultez toutes les pages des documents ou réussissez le contrôle de compréhension pour valider cette leçon.") ?></small>
+                <?php elseif ($checksRequired && !$checksAllCorrect): ?>
+                    <small>Répondez correctement au contrôle de compréhension ci-dessus pour pouvoir valider cette leçon.</small>
+                <?php else: ?>
+                    <small>Cette progression est calculée automatiquement (lecture active de la vidéo et du contenu).</small>
+                <?php endif; ?>
             </div>
             <div class="student-lesson-nav"><?php if ($previous): ?><a class="button secondary-button" href="lesson.php?id=<?= (int) $previous["id"] ?>">← <?= studentEscape($previous["title"]) ?></a><?php endif; ?><?php if ($next): ?><a class="button primary-button" href="lesson.php?id=<?= (int) $next["id"] ?>"><?= studentEscape($next["title"]) ?> →</a><?php endif; ?></div>
         </section>
@@ -607,10 +813,17 @@ $next = $navigation[$currentIndex + 1] ?? null;
             var LESSON_ID = <?= (int) $lessonId ?>;
             var SAVE_URL = "lesson.php?id=" + LESSON_ID;
             var REQUIRED_ACTIVE_SECONDS = <?= (int) $requiredActiveSeconds ?>;
+            var HAS_DOCUMENTS = <?= $pdfMaterials ? "true" : "false" ?>;
+            var CHECKS_REQUIRED = <?= $checksRequired ? "true" : "false" ?>;
+            var QUIZ_PASSED = <?= $quizPassed ? "true" : "false" ?>;
             var IDLE_LIMIT_MS = 45000;
 
             var activeSeconds = 0;
             var lastInteraction = Date.now();
+            var documentViewers = Array.prototype.slice.call(document.querySelectorAll(".student-document-viewer[data-material-id]"));
+            var documentsViewed = documentViewers.length > 0 && documentViewers.every(function(viewer) {
+                return viewer.dataset.viewed === "1";
+            });
             ["mousemove", "keydown", "scroll", "click", "touchstart", "wheel"].forEach(function(evt) {
                 window.addEventListener(evt, function() { lastInteraction = Date.now(); }, { passive: true });
             });
@@ -672,6 +885,9 @@ $next = $navigation[$currentIndex + 1] ?? null;
 
                 var timeRequirementMet = activeSeconds >= REQUIRED_ACTIVE_SECONDS;
                 var isCompleted = reachedBottom && allEnded && timeRequirementMet;
+                var documentRequirementMet = !HAS_DOCUMENTS || documentsViewed || QUIZ_PASSED;
+                var quizRequirementMet = !CHECKS_REQUIRED || QUIZ_PASSED || (HAS_DOCUMENTS && documentsViewed);
+                isCompleted = isCompleted && documentRequirementMet && quizRequirementMet;
                 if (isCompleted) overall = 100;
 
                 return { percent: Math.max(state.percent, overall), completed: isCompleted || state.completed };
@@ -697,7 +913,13 @@ $next = $navigation[$currentIndex + 1] ?? null;
                 if (done) done.style.display = state.completed ? "" : "none";
                 if (hint) {
                     var remaining = REQUIRED_ACTIVE_SECONDS - activeSeconds;
-                    if (!state.completed && reachedBottom && remaining > 0) {
+                    if (!state.completed && HAS_DOCUMENTS && !documentsViewed && !QUIZ_PASSED) {
+                        hint.style.display = "";
+                        hint.textContent = "Consultez toutes les pages des documents ou réussissez le contrôle de compréhension pour valider cette leçon.";
+                    } else if (!state.completed && CHECKS_REQUIRED && !QUIZ_PASSED && (!HAS_DOCUMENTS || documentsViewed)) {
+                        hint.style.display = "";
+                        hint.textContent = "Réussissez le contrôle de compréhension pour valider cette leçon.";
+                    } else if (!state.completed && reachedBottom && remaining > 0) {
                         hint.style.display = "";
                         hint.textContent = "Encore " + Math.ceil(remaining / 60) + " min de lecture active nécessaires pour valider cette leçon.";
                     } else {
@@ -705,6 +927,38 @@ $next = $navigation[$currentIndex + 1] ?? null;
                     }
                 }
             }
+
+            function updateCompletionRequirement() {
+                var requirement = document.getElementById("lesson-completion-requirement");
+                if (!requirement) return;
+                if (documentsViewed) {
+                    requirement.textContent = "Documents consultés. Vous pouvez valider cette leçon.";
+                } else if (QUIZ_PASSED) {
+                    requirement.textContent = "Contrôle réussi. Vous pouvez valider cette leçon sans consulter chaque page.";
+                } else {
+                    requirement.textContent = "Consultez toutes les pages des documents ou réussissez le contrôle de compréhension pour valider cette leçon.";
+                }
+            }
+
+            document.addEventListener("lesson-document-progress", function(event) {
+                documentsViewed = !!event.detail.allViewed;
+                if (event.detail.materialId) {
+                    var status = document.getElementById("document-status-" + event.detail.materialId);
+                    if (status) {
+                        status.textContent = event.detail.viewed
+                            ? "Document consulté."
+                            : "Pages consultées : " + event.detail.pagesViewed + "/" + event.detail.pageCount + ".";
+                    }
+                }
+                updateCompletionRequirement();
+                sync(true);
+            });
+
+            document.addEventListener("lesson-check-updated", function(event) {
+                QUIZ_PASSED = !!event.detail.passed;
+                updateCompletionRequirement();
+                sync(true);
+            });
 
             function sync(force) {
                 var next = computeOverall();
@@ -928,15 +1182,6 @@ $next = $navigation[$currentIndex + 1] ?? null;
                                 noteStatus.textContent = "Copie impossible";
                             });
                         }
-                        if (action === "download") {
-                            var file = new Blob([noteBox.innerText], { type: "text/plain;charset=utf-8" });
-                            var link = document.createElement("a");
-                            link.href = URL.createObjectURL(file);
-                            link.download = "notes-lecon-<?= (int) $lessonId ?>.txt";
-                            link.click();
-                            URL.revokeObjectURL(link.href);
-                            noteStatus.textContent = "Téléchargé ✓";
-                        }
                         if (action === "clear" && noteBox.innerText.trim() !== "") {
                             if (window.confirm("Effacer toutes les notes de cette leçon ?")) {
                                 noteBox.innerHTML = "";
@@ -995,6 +1240,13 @@ $next = $navigation[$currentIndex + 1] ?? null;
                                 feedback.innerHTML = '<span class="student-result-bad">✗ Incorrect — réessayez</span> <button type="button" class="button secondary-button lesson-check-retry">Réessayer</button>';
                                 feedback.querySelector(".lesson-check-retry").addEventListener("click", enableRetry);
                             }
+                            var questions = Array.prototype.slice.call(document.querySelectorAll(".lesson-check-question"));
+                            var passed = questions.length > 0 && questions.every(function(question) {
+                                return !!question.querySelector(".student-result-good");
+                            });
+                            document.dispatchEvent(new CustomEvent("lesson-check-updated", {
+                                detail: { passed: passed }
+                            }));
                         });
                 }
 
@@ -1006,6 +1258,9 @@ $next = $navigation[$currentIndex + 1] ?? null;
                     var feedback = fieldset.querySelector(".lesson-check-feedback");
                     feedback.innerHTML = '<button type="button" class="button primary-button lesson-check-submit">Vérifier</button>';
                     feedback.querySelector(".lesson-check-submit").addEventListener("click", submitAnswer);
+                    document.dispatchEvent(new CustomEvent("lesson-check-updated", {
+                        detail: { passed: false }
+                    }));
                 }
 
                 if (submitBtn) submitBtn.addEventListener("click", submitAnswer);
@@ -1013,9 +1268,9 @@ $next = $navigation[$currentIndex + 1] ?? null;
             });
         }());
     </script>
-<script src="../../assets/js/lesson-content-guard.js"></script>
+<script src="../../assets/js/lesson-content-guard.js?v=20261019-document-tracking"></script>
+<script type="module" src="../../assets/js/lesson-pdf-viewer.js?v=20261019-document-tracking"></script>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 
 </html>
-
-

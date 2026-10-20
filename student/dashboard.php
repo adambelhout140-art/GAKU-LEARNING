@@ -195,18 +195,19 @@ $reviewStatus = $_GET["review"] ?? "";
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Tableau de bord étudiant</title><link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+	<title>Tableau de bord étudiant</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 	<link rel="stylesheet" href="../assets/css/style.css?v=20260924d">
 </head>
 <body class="student-body">
 <header class="student-navbar">
-	<a href="../index.php" class="student-brand"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="42" height="42"> GAKU LEARNING</a>
+	<a href="../index.php" class="student-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="42" height="42"> <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
 	<nav>
 		<a href="dashboard.php" class="active">Tableau de bord</a>
 		
 		<a href="certificates/certificates.php">Mes certificats</a>
 		<a href="results.php">Mes résultats</a>
 		<a href="bookmarks.php">Mes favoris</a>
+		<a href="messages.php">Messages</a>
 		<a href="account.php">Mon compte</a>
 		<?= studentNotificationBell($pdo, $userId, "notifications.php") ?>
 		<a href="../auth/logout.php">Déconnexion</a>
@@ -366,5 +367,6 @@ $reviewStatus = $_GET["review"] ?? "";
 	</section>
 </main>
 <script src="../assets/js/dashboard-search.js?v=20260915a"></script>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 </html>

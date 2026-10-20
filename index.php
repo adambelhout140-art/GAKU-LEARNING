@@ -23,9 +23,12 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 require_once "config/database.php";
 require_once "config/homepage_videos.php";
 require_once "config/homepage_content.php";
+$platformBranding = platformBranding($pdo);
 $homepageContent = homepageContentLoad($pdo);
 $homeText = static function (string $group, string $key) use (&$homepageContent): string {
-    return htmlspecialchars((string) ($homepageContent[$group][$key] ?? ""), ENT_QUOTES, "UTF-8");
+    global $platformBranding;
+    $text = (string) ($homepageContent[$group][$key] ?? "");
+    return htmlspecialchars(str_replace("GAKU LEARNING", $platformBranding["platform_name"], $text), ENT_QUOTES, "UTF-8");
 };
 $homeLink = static function (string $group, string $key, string $fallback) use (&$homepageContent): string {
     $link = (string) ($homepageContent[$group][$key] ?? $fallback);
@@ -88,14 +91,14 @@ $homepageSectionOrder = $homepageContent["order"];
     <!-- * Basic page metadata and responsive viewport settings -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png"  href="assets/images/logo-mark.png">
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
 
 
     <title><?= $homeText("navigation", "page_title") ?></title>
 
     <!-- * Primary stylesheet import -->
-    <link rel="stylesheet" href="assets/css/style.css?v=20260928c">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261019-navbar">
 
 </head>
 <body class="home-page">
@@ -112,7 +115,7 @@ $homepageSectionOrder = $homepageContent["order"];
         <!-- * Brand Logo -->
         <a href="index.php" class="logo">
 
-            <img src="assets/images/logo-mark.png" alt="Gaku Learning" class="logo-image" width="42" height="42">
+            <img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars($platformBranding["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="logo-image" width="42" height="42">
             <?= $homeText("navigation", "brand_name") ?>
         </a>
 
@@ -120,12 +123,17 @@ $homepageSectionOrder = $homepageContent["order"];
         <!-- * Navigation Links -->
         <nav>
 
-            <a href="index.php"><?= $homeText("navigation", "home") ?></a>
+            <form class="course-nav-search" method="get" action="public/courses.php" role="search">
+                <label class="visually-hidden" for="nav-course-search">Rechercher une formation</label>
+                <input id="nav-course-search" type="search" name="search" placeholder="Rechercher...">
+                <button type="submit" aria-label="Rechercher">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+                </button>
+            </form>
 
-            <a href="#courses"><?= $homeText("navigation", "courses") ?></a>
-
-            <a href="#about"><?= $homeText("navigation", "about") ?></a>
-
+            <?php foreach (platformNavbarLinks($pdo) as $navLink): ?>
+                <a href="<?= htmlspecialchars($navLink["href"], ENT_QUOTES, "UTF-8") ?>"<?= $navLink["external"] ? ' target="_blank" rel="noopener noreferrer"' : "" ?>><?= htmlspecialchars($navLink["label"], ENT_QUOTES, "UTF-8") ?></a>
+            <?php endforeach; ?>
 
             <?php
             // --------------------------------------------------
@@ -430,6 +438,10 @@ $homepageSectionOrder = $homepageContent["order"];
 
         </div>
 
+        <div class="course-catalog-cta">
+            <a href="public/courses.php" class="button secondary-button">Rechercher dans toutes les formations</a>
+        </div>
+
     </div>
 
 </section>
@@ -524,7 +536,6 @@ $homepageSectionOrder = $homepageContent["order"];
 
             </div>
 
-
         </div>
 
         <div class="about-information">
@@ -572,7 +583,7 @@ $homepageSectionOrder = $homepageContent["order"];
             <div>
 
                 <h3 class="footer-brand">
-                    <img src="assets/images/logo-light.png" alt="<?= $homeText("navigation", "brand_name") ?>" class="brand-logo" width="34" height="34"> <?= $homeText("navigation", "brand_name") ?>
+                    <img src="<?= htmlspecialchars(platformLogoUrl($pdo, "dark-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= $homeText("navigation", "brand_name") ?>" class="brand-logo platform-brand-logo" width="34" height="34"> <?= $homeText("navigation", "brand_name") ?>
                 </h3>
 
                 <p><?= nl2br($homeText("footer", "description")) ?></p>
@@ -607,6 +618,11 @@ $homepageSectionOrder = $homepageContent["order"];
 
                 <?php endif; ?>
 
+            </div>
+
+            <div>
+                <h4>Contact</h4>
+                <?= platformContactMarkup($pdo, "platform-contact") ?>
             </div>
 
         </div>

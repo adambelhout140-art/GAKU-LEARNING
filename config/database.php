@@ -59,4 +59,7 @@ try {
     die("Database connection failed: " . $e->getMessage());
 }
 
+require_once __DIR__ . "/platform_settings.php";
+$platformBranding = platformBranding($pdo);
+
 ?>

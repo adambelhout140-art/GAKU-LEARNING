@@ -170,7 +170,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Ajouter un module - Administration</title><link rel="icon" type="image/png" href="../../assets/images/logo-mark.png">
+    <title>Ajouter un module - Administration</title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
 
     <!-- * Main administrative layout stylesheet import -->
     <link rel="stylesheet" href="../../assets/css/style.css?v=20260925e">

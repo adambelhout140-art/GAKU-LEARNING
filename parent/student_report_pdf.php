@@ -69,9 +69,10 @@ function downloadParentStudentReportsPdf(PDO $pdo, int $parentId, ?int $onlyStud
         .response { margin: 7px 0; padding: 7px; border: 1px solid #d8e0e6; page-break-inside: avoid; }
         .page-break { page-break-before: always; }
         .student-break { page-break-before: always; }
+        .platform-contact-pdf { margin-top: 16px; padding-top: 8px; border-top: 1px solid #d8e0e6; color: #657987; font-size: 8px; }
     </style></head><body>';
     $html .= "<h1>Rapport de suivi de formation</h1>";
-    $html .= '<p class="meta">GAKU LEARNING · Généré le ' . $escape(date("d/m/Y H:i"))
+    $html .= '<p class="meta">' . $escape(platformBranding($pdo)["platform_name"]) . ' · Généré le ' . $escape(date("d/m/Y H:i"))
         . " · " . count($students) . " étudiant(s)</p>";
 
     foreach ($students as $studentIndex => $student) {
@@ -352,6 +353,7 @@ function downloadParentStudentReportsPdf(PDO $pdo, int $parentId, ?int $onlyStud
         }
     }
 
+    $html .= platformContactMarkup($pdo, "platform-contact-pdf");
     $html .= "</body></html>";
     $options = new Options();
     $options->set("defaultFont", "DejaVu Sans");

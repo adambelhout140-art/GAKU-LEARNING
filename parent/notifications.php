@@ -33,12 +33,12 @@ function parentNotificationEscape($value): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notifications parent</title>
-    <link rel="icon" type="image/png"  href="../assets/images/logo-mark.png">
+    <link rel="icon" type="image/png"  href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260925e">
 </head>
 
 <body class="student-body parent-body">
-    <header class="student-navbar"><a href="../index.php" class="student-brand"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="38" height="38">GAKU LEARNING</a>
+    <header class="student-navbar"><a href="../index.php" class="student-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="38" height="38"><?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
         <nav><a href="dashboard.php">Mes enfants</a><a class="active" href="notifications.php">Notifications</a><a href="message.php">Contacter</a><a href="account.php">Mon compte</a><a href="../auth/logout.php">Déconnexion</a></nav>
     </header>
     <main class="student-dashboard">
@@ -55,6 +55,7 @@ function parentNotificationEscape($value): string
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         endif; ?></div>
         </section>
     </main>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 
 </html>

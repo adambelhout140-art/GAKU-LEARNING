@@ -55,13 +55,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivre ma demande - GAKU LEARNING</title><link rel="icon" type="image/png" href="../assets/images/logo-mark.png">
+    <title>Suivre ma demande - <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></title><link rel="icon" type="image/png" href="<?= htmlspecialchars(platformLogoUrl($pdo), ENT_QUOTES, "UTF-8") ?>">
     <link rel="stylesheet" href="../assets/css/style.css?v=20260917g">
 </head>
 <body class="auth-body">
     <main class="auth-page">
         <section class="auth-card">
-            <a href="../index.php" class="auth-brand"><img src="../assets/images/logo-mark.png" alt="Gaku Learning" class="brand-logo" width="42" height="42"> GAKU LEARNING</a>
+            <a href="../index.php" class="auth-brand"><img src="<?= htmlspecialchars(platformLogoUrl($pdo, "light-bg"), ENT_QUOTES, "UTF-8") ?>" alt="<?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?>" class="brand-logo" width="42" height="42"> <?= htmlspecialchars(platformBranding($pdo)["platform_name"], ENT_QUOTES, "UTF-8") ?></a>
             <h1>Suivi de votre demande</h1>
             <p class="auth-intro">Consultez en toute sécurité l'avancement de votre demande d'accès à une formation.</p>
 
@@ -106,6 +106,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <p class="auth-switch"><a href="../index.php">Retour à l'accueil</a></p>
         </section>
     </main>
+<?= platformContactMarkup($pdo, "platform-contact platform-contact-app") ?>
 </body>
 </html>
 
